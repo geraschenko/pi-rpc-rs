@@ -95,6 +95,24 @@ async fn main() {
     Err(_) => eprintln!("  TIMEOUT"),
   }
 
+  eprintln!("\n--- Calling get_commands() ---");
+  match timeout(Duration::from_secs(1), session.get_commands()).await {
+    Ok(Ok(GetCommandsData { commands })) => {
+      if raw_json {
+        println!(
+          "[get_commands] {}",
+          serde_json::to_string(&commands).unwrap()
+        );
+      } else {
+        commands
+          .iter()
+          .for_each(|cmd| eprintln!("  {}: {:?}", cmd.name, cmd.description));
+      }
+    }
+    Ok(Err(e)) => eprintln!("  ERROR: {e}"),
+    Err(_) => eprintln!("  TIMEOUT"),
+  }
+
   if let Some(prompt_text) = &args.prompt {
     eprintln!("\n--- Sending prompt: {prompt_text:?} ---");
     match session.prompt(prompt_text, None, None).await {
@@ -213,6 +231,13 @@ fn format_agent_event(event: &AgentEvent) -> String {
       final_error,
     } => {
       format!("auto_retry_end success={success} attempt={attempt} error={final_error:?}")
+    }
+    AgentEvent::ExtensionError {
+      extension_path,
+      event,
+      error,
+    } => {
+      format!("extension_error path={extension_path} event={event} error={error}")
     }
   }
 }
