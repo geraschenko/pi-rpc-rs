@@ -1,0 +1,11 @@
+excludes = ["target/**"]
+
+[formatter.rustfmt]
+command = "rustfmt"
+options = ["+nightly", "--edition", "2024"]
+includes = ["*.rs"]
+
+[formatter.dprint]
+command = "dprint"
+options = ["fmt", "--config", "dprint.json"]
+includes = ["*.md", "*.yaml", "*.yml", "*.json", "*.toml", "*.css", "*.html"]

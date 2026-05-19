@@ -74,6 +74,7 @@ pi-rpc-rs/
 The RPC protocol is defined in [pi-mono](https://github.com/badlogic/pi-mono). The specific TypeScript files each Rust module mirrors are documented in [src/types/README.md](../src/types/README.md).
 
 The installed pi package lives at:
+
 ```
 ~/.nvm/versions/node/v23.11.1/lib/node_modules/@mariozechner/pi-coding-agent/
 ```

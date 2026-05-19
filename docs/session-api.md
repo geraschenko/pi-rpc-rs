@@ -3,6 +3,7 @@
 ## Overview
 
 `PiSession` owns a `pi --mode rpc` child process and provides:
+
 - **Command methods** — one async method per RPC command, implemented directly on `PiSession`, with typed responses
 - **Event stream** — subscribe to agent events and extension UI requests
 - **Process lifecycle** — spawn, kill, drop

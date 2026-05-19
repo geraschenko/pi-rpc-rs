@@ -9,14 +9,14 @@ TypeScript source it corresponds to.
 
 ## File mapping
 
-| Rust file | TypeScript source |
-|---|---|
-| `ai.rs` | `packages/ai/src/types.ts` — content blocks, messages, usage, models, streaming events |
-| `agent.rs` | `packages/agent/src/types.ts` — `AgentMessage`, `AgentEvent`, `ThinkingLevel` |
-| `agent_session.rs` | `packages/coding-agent/src/core/agent-session.ts` — `SessionStats` |
-| `bash_executor.rs` | `packages/coding-agent/src/core/bash-executor.ts` — `BashResult` |
-| `compaction.rs` | `packages/coding-agent/src/core/compaction/compaction.ts` — `CompactionResult` |
-| `rpc_types.rs` | `packages/coding-agent/src/modes/rpc/rpc-types.ts` — `RpcCommand`, `RpcResponse`, `RpcSessionState`, extension UI types |
+| Rust file          | TypeScript source                                                                                                       |
+| ------------------ | ----------------------------------------------------------------------------------------------------------------------- |
+| `ai.rs`            | `packages/ai/src/types.ts` — content blocks, messages, usage, models, streaming events                                  |
+| `agent.rs`         | `packages/agent/src/types.ts` — `AgentMessage`, `AgentEvent`, `ThinkingLevel`                                           |
+| `agent_session.rs` | `packages/coding-agent/src/core/agent-session.ts` — `SessionStats`                                                      |
+| `bash_executor.rs` | `packages/coding-agent/src/core/bash-executor.ts` — `BashResult`                                                        |
+| `compaction.rs`    | `packages/coding-agent/src/core/compaction/compaction.ts` — `CompactionResult`                                          |
+| `rpc_types.rs`     | `packages/coding-agent/src/modes/rpc/rpc-types.ts` — `RpcCommand`, `RpcResponse`, `RpcSessionState`, extension UI types |
 
 ## Notes on TypeScript → Rust mapping
 

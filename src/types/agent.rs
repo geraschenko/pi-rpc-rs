@@ -242,7 +242,6 @@ pub enum AgentEvent {
   },
 
   // -- From packages/coding-agent/src/modes/rpc/rpc-mode.ts (untyped in TS, only exists on the wire) --
-
   #[serde(rename = "extension_error")]
   ExtensionError {
     #[serde(rename = "extensionPath")]
