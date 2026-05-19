@@ -1,0 +1,97 @@
+# Machine-readable map from handwritten Rust RPC wire types to upstream pi TypeScript sources.
+#
+# This is advisory metadata for humans and scripts. It is not consumed by the
+# crate at build time. Keep it in sync with src/types/README.md when bumping
+# the upstream pi version.
+
+version = "v0.75.3"
+repository = "https://github.com/earendil-works/pi"
+
+[[files]]
+rust = "src/types/ai.rs"
+typescript = "packages/ai/src/types.ts"
+exports = [
+  "TextContent",
+  "ThinkingContent",
+  "ImageContent",
+  "ToolCall",
+  "ContentBlock",
+  "Usage",
+  "StopReason",
+  "UserMessage",
+  "AssistantMessage",
+  "ToolResultMessage",
+  "Message",
+  "Model",
+  "AssistantMessageEvent",
+]
+notes = "Only RPC-reachable ai.ts types are mirrored. Image generation types are intentionally skipped unless they appear in RPC wire types."
+
+[[files]]
+rust = "src/types/agent.rs"
+typescript = "packages/agent/src/types.ts"
+exports = [
+  "ThinkingLevel",
+  "AgentMessage",
+  "AgentEvent",
+]
+notes = "AgentMessage includes declaration-merged custom messages from core/messages.ts. AgentEvent is extended with AgentSessionEvent variants from core/agent-session.ts."
+
+[[files]]
+rust = "src/types/agent.rs"
+typescript = "packages/coding-agent/src/core/messages.ts"
+exports = [
+  "BashExecutionMessage",
+  "CustomMessage",
+  "BranchSummaryMessage",
+  "CompactionSummaryMessage",
+]
+notes = "These are merged into AgentMessage in Rust rather than defined as separate top-level message structs."
+
+[[files]]
+rust = "src/types/agent.rs"
+typescript = "packages/coding-agent/src/core/agent-session.ts"
+exports = [
+  "AgentSessionEvent",
+]
+notes = "AgentSessionEvent variants are included directly in AgentEvent."
+
+[[files]]
+rust = "src/types/agent_session.rs"
+typescript = "packages/coding-agent/src/core/agent-session.ts"
+exports = [
+  "SessionStats",
+]
+notes = "Includes nested ContextUsage copied from extension context types because SessionStats references it."
+
+[[files]]
+rust = "src/types/bash_executor.rs"
+typescript = "packages/coding-agent/src/core/bash-executor.ts"
+exports = ["BashResult"]
+
+[[files]]
+rust = "src/types/compaction.rs"
+typescript = "packages/coding-agent/src/core/compaction/compaction.ts"
+exports = ["CompactionResult"]
+
+[[files]]
+rust = "src/types/rpc_types.rs"
+typescript = "packages/coding-agent/src/modes/rpc/rpc-types.ts"
+exports = [
+  "RpcCommand",
+  "RpcSlashCommand",
+  "RpcSessionState",
+  "RpcResponse",
+  "RpcExtensionUIRequest",
+  "RpcExtensionUIResponse",
+]
+notes = "This is the primary source of truth for what crosses the RPC boundary. New imports in this file often require adding new Rust type files."
+
+[[files]]
+rust = "src/types/source_info.rs"
+typescript = "packages/coding-agent/src/core/source-info.ts"
+exports = [
+  "SourceScope",
+  "SourceOrigin",
+  "SourceInfo",
+]

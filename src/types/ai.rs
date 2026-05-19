@@ -141,8 +141,11 @@ pub enum UserContent {
 // Model
 // ============================================================================
 
-/// Model definition. The generic `TApi` and conditional `compat` field from
-/// TypeScript are erased — on the wire it's always `Model<any>`.
+/// Model definition. The generic `TApi` from TypeScript is erased — on the
+/// wire RPC exposes this as `Model<any>`.
+///
+/// The `compat` field stores provider/API-specific compatibility flags. Its
+/// TypeScript shape is conditional on `api`, so Rust preserves it as JSON.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct Model {
   pub id: String,

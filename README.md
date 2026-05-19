@@ -13,10 +13,10 @@ use pi_rpc_rs::types::*;
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
-  // Spawn a pi session using Sonnet
+  // Spawn a pi session
   let config = PiSessionConfig {
-    provider: Some("anthropic".to_string()),
-    model: Some("claude-sonnet-4-6".into()),
+    provider: Some("openai-codex".to_string()),
+    model: Some("gpt-5.1".to_string()),
     ..Default::default()
   };
   let session = PiSession::spawn(config).await?;
@@ -57,10 +57,10 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 ┌──────────▼───────────────────────┐
 │         pi-rpc-rs crate          │
 │                                  │
-│  Rust types (hand-written)       │
+│  Rust types                      │
 │  PiSession (owns child process)  │
 │  ├─ stdin writer (commands)      │
-│  ├─ stdout reader (events)      │
+│  ├─ stdout reader (events)       │
 │  ├─ command/response correlation │
 │  └─ event fan-out                │
 └──────────┬───────────────────────┘
