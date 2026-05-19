@@ -638,6 +638,7 @@ where
 ///
 /// Subscribers receive these via `PiSession::subscribe()`.
 #[derive(Debug, Clone, PartialEq)]
+#[allow(clippy::large_enum_variant)]
 pub enum RpcEvent {
   Agent(AgentEvent),
   ExtensionUI(RpcExtensionUIRequest),

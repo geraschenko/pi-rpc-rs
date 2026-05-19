@@ -21,20 +21,15 @@ use crate::types::{RpcCommand, RpcCommandKind, RpcEvent, RpcExtensionUIRequest, 
 // ============================================================================
 
 /// How session persistence is handled.
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Default)]
 pub enum SessionPersistence {
   /// Default pi behavior (sessions saved to ~/.pi/agent/sessions/).
+  #[default]
   Enabled,
   /// Pass --no-session flag.
   Disabled,
   /// Pass --session-dir with the given path.
   CustomDir(PathBuf),
-}
-
-impl Default for SessionPersistence {
-  fn default() -> Self {
-    SessionPersistence::Enabled
-  }
 }
 
 /// Configuration for spawning a pi session.

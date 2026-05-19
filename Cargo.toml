@@ -3,10 +3,11 @@ name = "pi-rpc-rs"
 version = "0.1.0"
 authors = ["Anton Geraschenko <gerascheko@gmail.com>"]
 edition = "2024"
+exclude = ["docs/", "scripts/"]
 license = "MIT"
+readme = "README.md"
 repository = "https://github.com/geraschenko/pi-rpc-rs"
 description = "A typed interface to pi's RPC mode (pi --mode rpc)"
-readme = "README.md"
 
 [dependencies]
 clap = { version = "4", features = ["derive"] }
