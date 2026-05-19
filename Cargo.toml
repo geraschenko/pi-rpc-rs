@@ -5,7 +5,8 @@ authors = ["Anton Geraschenko <gerascheko@gmail.com>"]
 edition = "2024"
 license = "MIT"
 repository = "https://github.com/geraschenko/pi-rpc-rs"
-description = "A typed, ergonomic Rust interface to pi's RPC mode (pi --mode rpc)"
+description = "A typed interface to pi's RPC mode (pi --mode rpc)"
+readme = "README.md"
 
 [dependencies]
 clap = { version = "4", features = ["derive"] }
