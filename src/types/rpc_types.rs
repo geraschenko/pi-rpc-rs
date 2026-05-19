@@ -11,6 +11,7 @@ use super::agent_session::*;
 use super::ai::*;
 use super::bash_executor::*;
 use super::compaction::*;
+use super::source_info::*;
 
 // ============================================================================
 // Small enums for limited-option string fields
@@ -47,16 +48,6 @@ pub enum SlashCommandSource {
   Prompt,
   #[serde(rename = "skill")]
   Skill,
-}
-
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
-pub enum SlashCommandLocation {
-  #[serde(rename = "user")]
-  User,
-  #[serde(rename = "project")]
-  Project,
-  #[serde(rename = "path")]
-  Path,
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -207,6 +198,8 @@ pub enum RpcCommandKind {
     #[serde(rename = "entryId")]
     entry_id: String,
   },
+  #[serde(rename = "clone")]
+  Clone,
   #[serde(rename = "get_fork_messages")]
   GetForkMessages,
   #[serde(rename = "get_last_assistant_text")]
@@ -234,10 +227,8 @@ pub struct RpcSlashCommand {
   #[serde(default, skip_serializing_if = "Option::is_none")]
   pub description: Option<String>,
   pub source: SlashCommandSource,
-  #[serde(default, skip_serializing_if = "Option::is_none")]
-  pub location: Option<SlashCommandLocation>,
-  #[serde(default, skip_serializing_if = "Option::is_none")]
-  pub path: Option<String>,
+  #[serde(rename = "sourceInfo")]
+  pub source_info: SourceInfo,
 }
 
 // ============================================================================
@@ -326,6 +317,7 @@ pub enum RpcResponseKind {
   ExportHtml(ExportHtmlData),
   SwitchSession(SwitchSessionData),
   Fork(ForkData),
+  Clone(CloneData),
   GetForkMessages(GetForkMessagesData),
   GetLastAssistantText(GetLastAssistantTextData),
   GetMessages(GetMessagesData),
@@ -374,6 +366,11 @@ pub struct SwitchSessionData {
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct ForkData {
   pub text: String,
+  pub cancelled: bool,
+}
+
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct CloneData {
   pub cancelled: bool,
 }
 
@@ -464,6 +461,7 @@ impl<'de> Deserialize<'de> for RpcResponse {
         "export_html" => RpcResponseKind::ExportHtml(data_field(obj)?),
         "switch_session" => RpcResponseKind::SwitchSession(data_field(obj)?),
         "fork" => RpcResponseKind::Fork(data_field(obj)?),
+        "clone" => RpcResponseKind::Clone(data_field(obj)?),
         "get_fork_messages" => RpcResponseKind::GetForkMessages(data_field(obj)?),
         "get_last_assistant_text" => RpcResponseKind::GetLastAssistantText(data_field(obj)?),
         "get_messages" => RpcResponseKind::GetMessages(data_field(obj)?),
@@ -530,6 +528,7 @@ const COMMAND_NAMES: &[&str] = &[
   "export_html",
   "switch_session",
   "fork",
+  "clone",
   "get_fork_messages",
   "get_last_assistant_text",
   "set_session_name",
@@ -595,6 +594,7 @@ impl Serialize for RpcResponse {
       RpcResponseKind::ExportHtml(d) => serialize_success(&mut map, "export_html", Some(d)),
       RpcResponseKind::SwitchSession(d) => serialize_success(&mut map, "switch_session", Some(d)),
       RpcResponseKind::Fork(d) => serialize_success(&mut map, "fork", Some(d)),
+      RpcResponseKind::Clone(d) => serialize_success(&mut map, "clone", Some(d)),
       RpcResponseKind::GetForkMessages(d) => {
         serialize_success(&mut map, "get_fork_messages", Some(d))
       }

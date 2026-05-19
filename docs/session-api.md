@@ -93,6 +93,7 @@ session.new_session(None).await?;                            // -> NewSessionDat
 session.new_session(Some("/path".into())).await?;            // with parent
 session.switch_session("/path/to/session.jsonl").await?;     // -> SwitchSessionData
 session.fork("entry_id").await?;                             // -> ForkData
+session.clone_session().await?;                              // -> CloneData (RPC command: "clone")
 session.get_fork_messages().await?;                          // -> GetForkMessagesData
 session.set_session_name("my-feature").await?;               // -> ()
 ```
@@ -164,6 +165,8 @@ session.respond_extension_ui(response).await?; // -> ()
 ```
 
 Where `response` is an `RpcExtensionUIResponse` (Value, Confirmed, or Cancelled variant).
+
+Note: `clone_session()` corresponds to pi's RPC command named `clone`; the Rust method uses a different name to avoid confusion with `Clone::clone`.
 
 ## Event stream
 

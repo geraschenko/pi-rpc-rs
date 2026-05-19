@@ -1,7 +1,7 @@
 # pi RPC Type Definitions
 
 Hand-written Rust types mirroring the TypeScript definitions from
-[pi](https://github.com/badlogic/pi-mono) **v0.55.3**.
+[pi](https://github.com/badlogic/pi-mono) **v0.75.3**.
 
 These files are **not auto-generated** — they were written by hand to closely
 match the TypeScript sources. Each file has a doc comment at the top naming the
@@ -17,6 +17,7 @@ TypeScript source it corresponds to.
 | `bash_executor.rs` | `packages/coding-agent/src/core/bash-executor.ts` — `BashResult`                                                        |
 | `compaction.rs`    | `packages/coding-agent/src/core/compaction/compaction.ts` — `CompactionResult`                                          |
 | `rpc_types.rs`     | `packages/coding-agent/src/modes/rpc/rpc-types.ts` — `RpcCommand`, `RpcResponse`, `RpcSessionState`, extension UI types |
+| `source_info.rs`   | `packages/coding-agent/src/core/source-info.ts` — source metadata for slash commands                                    |
 
 ## Notes on TypeScript → Rust mapping
 
@@ -25,9 +26,10 @@ TypeScript source it corresponds to.
   `AgentMessage` enum in `agent.rs`, with comments marking their origin.
 
 - **`AgentSessionEvent`**: TypeScript defines this as
-  `AgentEvent | { type: "auto_compaction_start"; ... } | ...`. In Rust, the
-  additional variants are included directly in `AgentEvent` in `agent.rs`, with
-  comments marking their origin. `agent_session.rs` contains only `SessionStats`.
+  `AgentEvent | { type: "queue_update"; ... } | { type: "compaction_start"; ... } | ...`.
+  In Rust, the additional variants are included directly in `AgentEvent` in
+  `agent.rs`, with comments marking their origin. `agent_session.rs` contains
+  `SessionStats` and related session-stat data.
 
 ## Updating for a new pi version
 

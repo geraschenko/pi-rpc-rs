@@ -151,6 +151,15 @@ impl PiSession {
     match_response!(resp, RpcResponseKind::Fork(data) => data)
   }
 
+  /// Clone the current active branch into a new session.
+  ///
+  /// This corresponds to pi's RPC command named `clone`, but the Rust method is
+  /// named `clone_session` to avoid confusion with [`Clone::clone`].
+  pub async fn clone_session(&self) -> Result<CloneData, PiError> {
+    let resp = self.send_command(RpcCommandKind::Clone).await?;
+    match_response!(resp, RpcResponseKind::Clone(data) => data)
+  }
+
   /// Get messages that can be forked from.
   pub async fn get_fork_messages(&self) -> Result<GetForkMessagesData, PiError> {
     let resp = self.send_command(RpcCommandKind::GetForkMessages).await?;

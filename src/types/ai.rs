@@ -9,6 +9,30 @@ use std::collections::HashMap;
 // Content blocks
 // ============================================================================
 
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct TextSignatureV1 {
+  pub v: u8,
+  pub id: String,
+  #[serde(default, skip_serializing_if = "Option::is_none")]
+  pub phase: Option<TextSignaturePhase>,
+}
+
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub enum TextSignaturePhase {
+  #[serde(rename = "commentary")]
+  Commentary,
+  #[serde(rename = "final_answer")]
+  FinalAnswer,
+}
+
+/// Legacy text signature string or structured V1 metadata.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[serde(untagged)]
+pub enum TextSignature {
+  String(String),
+  V1(TextSignatureV1),
+}
+
 /// Union of TextContent | ThinkingContent | ImageContent | ToolCall.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(tag = "type")]
@@ -21,7 +45,7 @@ pub enum ContentBlock {
       default,
       skip_serializing_if = "Option::is_none"
     )]
-    text_signature: Option<String>,
+    text_signature: Option<TextSignature>,
   },
   #[serde(rename = "thinking")]
   Thinking {
@@ -128,6 +152,12 @@ pub struct Model {
   #[serde(rename = "baseUrl")]
   pub base_url: String,
   pub reasoning: bool,
+  #[serde(
+    rename = "thinkingLevelMap",
+    default,
+    skip_serializing_if = "Option::is_none"
+  )]
+  pub thinking_level_map: Option<HashMap<crate::types::ThinkingLevel, Option<String>>>,
   pub input: Vec<String>,
   pub cost: ModelCost,
   #[serde(rename = "contextWindow")]
@@ -136,6 +166,8 @@ pub struct Model {
   pub max_tokens: f64,
   #[serde(default, skip_serializing_if = "Option::is_none")]
   pub headers: Option<HashMap<String, String>>,
+  #[serde(default, skip_serializing_if = "Option::is_none")]
+  pub compat: Option<serde_json::Value>,
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -146,6 +178,39 @@ pub struct ModelCost {
   pub cache_read: f64,
   #[serde(rename = "cacheWrite")]
   pub cache_write: f64,
+}
+
+// ============================================================================
+// Assistant message diagnostics
+// ============================================================================
+
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct DiagnosticErrorInfo {
+  #[serde(default, skip_serializing_if = "Option::is_none")]
+  pub name: Option<String>,
+  pub message: String,
+  #[serde(default, skip_serializing_if = "Option::is_none")]
+  pub stack: Option<String>,
+  #[serde(default, skip_serializing_if = "Option::is_none")]
+  pub code: Option<DiagnosticErrorCode>,
+}
+
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[serde(untagged)]
+pub enum DiagnosticErrorCode {
+  String(String),
+  Number(f64),
+}
+
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct AssistantMessageDiagnostic {
+  #[serde(rename = "type")]
+  pub type_: String,
+  pub timestamp: f64,
+  #[serde(default, skip_serializing_if = "Option::is_none")]
+  pub error: Option<DiagnosticErrorInfo>,
+  #[serde(default, skip_serializing_if = "Option::is_none")]
+  pub details: Option<HashMap<String, serde_json::Value>>,
 }
 
 // ============================================================================

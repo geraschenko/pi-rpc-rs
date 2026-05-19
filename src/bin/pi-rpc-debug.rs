@@ -201,17 +201,34 @@ fn format_agent_event(event: &AgentEvent) -> String {
     } => {
       format!("tool_execution_end {tool_name} is_error={is_error}")
     }
-    AgentEvent::AutoCompactionStart { reason } => {
-      format!("auto_compaction_start reason={reason:?}")
+    AgentEvent::QueueUpdate {
+      steering,
+      follow_up,
+    } => {
+      format!(
+        "queue_update steering={} follow_up={}",
+        steering.len(),
+        follow_up.len()
+      )
     }
-    AgentEvent::AutoCompactionEnd {
+    AgentEvent::CompactionStart { reason } => {
+      format!("compaction_start reason={reason:?}")
+    }
+    AgentEvent::SessionInfoChanged { name } => {
+      format!("session_info_changed name={name:?}")
+    }
+    AgentEvent::ThinkingLevelChanged { level } => {
+      format!("thinking_level_changed level={level:?}")
+    }
+    AgentEvent::CompactionEnd {
+      reason,
       result,
       aborted,
       will_retry,
       error_message,
     } => {
       format!(
-        "auto_compaction_end aborted={aborted} will_retry={will_retry} error={error_message:?} result={:?}",
+        "compaction_end reason={reason:?} aborted={aborted} will_retry={will_retry} error={error_message:?} result={:?}",
         result.as_ref().map(|r| &r.summary)
       )
     }

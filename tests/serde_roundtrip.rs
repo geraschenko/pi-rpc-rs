@@ -234,6 +234,7 @@ fn command_roundtrip() {
     RpcCommandKind::GetMessages,
     RpcCommandKind::GetCommands,
     RpcCommandKind::GetSessionStats,
+    RpcCommandKind::Clone,
     RpcCommandKind::GetForkMessages,
     RpcCommandKind::GetLastAssistantText,
     RpcCommandKind::AbortBash,
@@ -497,6 +498,18 @@ fn response_get_session_stats() {
 }
 
 #[test]
+fn response_clone() {
+  let json =
+    r#"{"type":"response","id":"9","command":"clone","success":true,"data":{"cancelled":false}}"#;
+  let resp: RpcResponse = serde_json::from_str(json).unwrap();
+  if let RpcResponseKind::Clone(data) = &resp.kind {
+    assert!(!data.cancelled);
+  } else {
+    panic!("Expected Clone");
+  }
+}
+
+#[test]
 fn response_export_html() {
   let json = r#"{"type":"response","id":"9","command":"export_html","success":true,"data":{"path":"/tmp/export.html"}}"#;
   let resp: RpcResponse = serde_json::from_str(json).unwrap();
@@ -519,8 +532,12 @@ fn response_get_commands() {
                 "name": "test",
                 "description": "A test command",
                 "source": "extension",
-                "location": "user",
-                "path": "/home/user/.pi/extensions/test"
+                "sourceInfo": {
+                    "path": "/home/user/.pi/extensions/test",
+                    "source": "test-extension",
+                    "scope": "user",
+                    "origin": "top-level"
+                }
             }]
         }
     }"#;
@@ -529,7 +546,11 @@ fn response_get_commands() {
     assert_eq!(data.commands.len(), 1);
     assert_eq!(data.commands[0].name, "test");
     assert_eq!(data.commands[0].source, SlashCommandSource::Extension);
-    assert_eq!(data.commands[0].location, Some(SlashCommandLocation::User));
+    assert_eq!(data.commands[0].source_info.scope, SourceScope::User);
+    assert_eq!(
+      data.commands[0].source_info.path,
+      "/home/user/.pi/extensions/test"
+    );
   } else {
     panic!("Expected GetCommands");
   }
@@ -788,13 +809,13 @@ fn event_tool_execution() {
 }
 
 #[test]
-fn event_auto_compaction_start() {
-  let json = r#"{"type":"auto_compaction_start","reason":"threshold"}"#;
+fn event_compaction_start() {
+  let json = r#"{"type":"compaction_start","reason":"threshold"}"#;
   let event: AgentEvent = serde_json::from_str(json).unwrap();
   assert!(matches!(
     event,
-    AgentEvent::AutoCompactionStart {
-      reason: AutoCompactionReason::Threshold
+    AgentEvent::CompactionStart {
+      reason: CompactionReason::Threshold
     }
   ));
 }

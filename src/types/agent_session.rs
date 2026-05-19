@@ -25,6 +25,20 @@ pub struct SessionStats {
   pub total_messages: f64,
   pub tokens: SessionTokens,
   pub cost: f64,
+  #[serde(
+    rename = "contextUsage",
+    default,
+    skip_serializing_if = "Option::is_none"
+  )]
+  pub context_usage: Option<ContextUsage>,
+}
+
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct ContextUsage {
+  pub tokens: Option<f64>,
+  #[serde(rename = "contextWindow")]
+  pub context_window: f64,
+  pub percent: Option<f64>,
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]

@@ -32,6 +32,7 @@ Defined in `rpc-types.ts` as `RpcCommand`. Discriminated union on `type` field. 
 | `export_html`             | `outputPath?`                              | Export session to HTML.                                                       |
 | `switch_session`          | `sessionPath`                              | Load different session file.                                                  |
 | `fork`                    | `entryId`                                  | Fork from a previous user message.                                            |
+| `clone`                   | —                                          | Clone the current active branch into a new session.                           |
 | `get_fork_messages`       | —                                          | List forkable user messages.                                                  |
 | `get_last_assistant_text` | —                                          | Get last assistant response text.                                             |
 | `set_session_name`        | `name`                                     | Set display name for session.                                                 |
@@ -51,23 +52,26 @@ All have `type: "response"`, `command: string`, `success: boolean`. On failure: 
 
 Defined across `AgentEvent` (agent-core) and `AgentSessionEvent` (agent-session). Discriminated union on `type` field.
 
-| Event                   | Key fields                                          | Notes                                                            |
-| ----------------------- | --------------------------------------------------- | ---------------------------------------------------------------- |
-| `agent_start`           | —                                                   | Agent begins processing prompt.                                  |
-| `agent_end`             | `messages: AgentMessage[]`                          | Agent done. Contains ALL new messages from this run.             |
-| `turn_start`            | —                                                   | New turn (1 assistant response + tool calls).                    |
-| `turn_end`              | `message`, `toolResults`                            | Turn complete.                                                   |
-| `message_start`         | `message: AgentMessage`                             | Message begins. Emitted for user, assistant, toolResult, custom. |
-| `message_update`        | `message`, `assistantMessageEvent`                  | Streaming delta. Only for assistant messages.                    |
-| `message_end`           | `message: AgentMessage`                             | Message complete.                                                |
-| `tool_execution_start`  | `toolCallId`, `toolName`, `args`                    | Tool begins.                                                     |
-| `tool_execution_update` | `toolCallId`, `toolName`, `args`, `partialResult`   | Tool progress.                                                   |
-| `tool_execution_end`    | `toolCallId`, `toolName`, `result`, `isError`       | Tool done.                                                       |
-| `auto_compaction_start` | `reason`                                            | `"threshold"` \| `"overflow"`                                    |
-| `auto_compaction_end`   | `result?`, `aborted`, `willRetry`, `errorMessage?`  |                                                                  |
-| `auto_retry_start`      | `attempt`, `maxAttempts`, `delayMs`, `errorMessage` |                                                                  |
-| `auto_retry_end`        | `success`, `attempt`, `finalError?`                 |                                                                  |
-| `extension_error`       | `extensionPath`, `event`, `error`                   |                                                                  |
+| Event                    | Key fields                                                   | Notes                                                            |
+| ------------------------ | ------------------------------------------------------------ | ---------------------------------------------------------------- |
+| `agent_start`            | —                                                            | Agent begins processing prompt.                                  |
+| `agent_end`              | `messages: AgentMessage[]`                                   | Agent done. Contains ALL new messages from this run.             |
+| `turn_start`             | —                                                            | New turn (1 assistant response + tool calls).                    |
+| `turn_end`               | `message`, `toolResults`                                     | Turn complete.                                                   |
+| `message_start`          | `message: AgentMessage`                                      | Message begins. Emitted for user, assistant, toolResult, custom. |
+| `message_update`         | `message`, `assistantMessageEvent`                           | Streaming delta. Only for assistant messages.                    |
+| `message_end`            | `message: AgentMessage`                                      | Message complete.                                                |
+| `tool_execution_start`   | `toolCallId`, `toolName`, `args`                             | Tool begins.                                                     |
+| `tool_execution_update`  | `toolCallId`, `toolName`, `args`, `partialResult`            | Tool progress.                                                   |
+| `tool_execution_end`     | `toolCallId`, `toolName`, `result`, `isError`                | Tool done.                                                       |
+| `queue_update`           | `steering`, `followUp`                                       | Current pending queues.                                          |
+| `compaction_start`       | `reason`                                                     | `"manual"` \| `"threshold"` \| `"overflow"`                      |
+| `session_info_changed`   | `name`                                                       | Session name changed.                                            |
+| `thinking_level_changed` | `level`                                                      | Thinking level changed.                                          |
+| `compaction_end`         | `reason`, `result?`, `aborted`, `willRetry`, `errorMessage?` |                                                                  |
+| `auto_retry_start`       | `attempt`, `maxAttempts`, `delayMs`, `errorMessage`          |                                                                  |
+| `auto_retry_end`         | `success`, `attempt`, `finalError?`                          |                                                                  |
+| `extension_error`        | `extensionPath`, `event`, `error`                            |                                                                  |
 
 Plus extension UI requests (stdout):
 

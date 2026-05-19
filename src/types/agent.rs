@@ -14,7 +14,7 @@ use super::compaction::CompactionResult;
 // ThinkingLevel
 // ============================================================================
 
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub enum ThinkingLevel {
   #[serde(rename = "off")]
   Off,
@@ -55,6 +55,20 @@ pub enum AgentMessage {
     api: String,
     provider: String,
     model: String,
+    #[serde(
+      rename = "responseModel",
+      default,
+      skip_serializing_if = "Option::is_none"
+    )]
+    response_model: Option<String>,
+    #[serde(
+      rename = "responseId",
+      default,
+      skip_serializing_if = "Option::is_none"
+    )]
+    response_id: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    diagnostics: Option<Vec<AssistantMessageDiagnostic>>,
     usage: Usage,
     #[serde(rename = "stopReason")]
     stop_reason: StopReason,
@@ -203,10 +217,24 @@ pub enum AgentEvent {
   },
 
   // -- From packages/coding-agent/src/core/agent-session.ts (AgentSessionEvent extensions) --
-  #[serde(rename = "auto_compaction_start")]
-  AutoCompactionStart { reason: AutoCompactionReason },
-  #[serde(rename = "auto_compaction_end")]
-  AutoCompactionEnd {
+  #[serde(rename = "queue_update")]
+  QueueUpdate {
+    steering: Vec<String>,
+    #[serde(rename = "followUp")]
+    follow_up: Vec<String>,
+  },
+  #[serde(rename = "compaction_start")]
+  CompactionStart { reason: CompactionReason },
+  #[serde(rename = "session_info_changed")]
+  SessionInfoChanged {
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    name: Option<String>,
+  },
+  #[serde(rename = "thinking_level_changed")]
+  ThinkingLevelChanged { level: ThinkingLevel },
+  #[serde(rename = "compaction_end")]
+  CompactionEnd {
+    reason: CompactionReason,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     result: Option<CompactionResult>,
     aborted: bool,
@@ -252,7 +280,9 @@ pub enum AgentEvent {
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
-pub enum AutoCompactionReason {
+pub enum CompactionReason {
+  #[serde(rename = "manual")]
+  Manual,
   #[serde(rename = "threshold")]
   Threshold,
   #[serde(rename = "overflow")]
