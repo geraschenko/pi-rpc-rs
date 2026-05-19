@@ -77,12 +77,12 @@ The `RpcCommand` / `RpcResponse` types in `src/types/rpc_types.rs` define the wi
 ### Prompting
 
 ```rust
-session.prompt("message", None, None).await?;              // -> ()
+session.prompt("message", None, None).await?;               // -> ()
 session.prompt("msg", Some(images), None).await?;           // with images
 session.prompt("msg", None, Some(StreamingBehavior::Steer)).await?;
 session.steer("interrupt message", None).await?;            // -> ()
 session.follow_up("after you're done", None).await?;        // -> ()
-session.abort().await?;                                      // -> ()
+session.abort().await?;                                     // -> ()
 ```
 
 ### Session management

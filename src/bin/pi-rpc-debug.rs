@@ -36,8 +36,8 @@ async fn main() {
 
   let config = PiSessionConfig {
     session_persistence: SessionPersistence::Disabled,
-    provider: Some("anthropic".to_string()),
-    model: Some("claude-sonnet-4-6".to_string()),
+    provider: Some("openai-codex".to_string()),
+    model: Some("gpt-5.1".to_string()),
     ..Default::default()
   };
 
