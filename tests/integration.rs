@@ -21,8 +21,8 @@ const LLM_TIMEOUT: Duration = Duration::from_secs(15);
 async fn spawn_test_session() -> PiSession {
   let config = PiSessionConfig {
     session_persistence: SessionPersistence::Disabled,
-    provider: Some("anthropic".to_string()),
-    model: Some("claude-sonnet-4-6".to_string()),
+    provider: Some("openai-codex".to_string()),
+    model: Some("gpt-5.4-mini".to_string()),
     ..Default::default()
   };
   PiSession::spawn(config)
@@ -114,7 +114,7 @@ async fn test_spawn_and_get_state() {
   let model = state.model.expect("model should be set");
   assert!(!model.id.is_empty());
   assert!(!model.name.is_empty());
-  assert!(model.reasoning, "sonnet 4.6 should support reasoning");
+  assert!(model.reasoning, "gpt-5.4-mini should support reasoning");
 
   eprintln!(
     "State: session_id={}, model={}, thinking_level={:?}",
@@ -304,7 +304,7 @@ async fn test_cycle_model() {
 async fn test_set_thinking_level() {
   let session = spawn_test_session().await;
 
-  // Sonnet 4.6 supports reasoning, so this should work
+  // gpt-5.4-mini supports reasoning, so this should work
   session
     .set_thinking_level(ThinkingLevel::Medium)
     .await
