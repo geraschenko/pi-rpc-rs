@@ -19,6 +19,12 @@ pi version, use the corresponding old `pi-rpc-rs` release.
 | `0.1.1`             | `v0.78.0`             |
 | `0.1.0`             | `v0.75.3`             |
 
+## Versioning
+
+Each `pi-rpc-rs` release targets exactly one upstream pi version. When upstream
+pi compatibility changes, bump the patch version of this crate and add a new row
+to the compatibility table. Do not overwrite previous compatibility rows.
+
 ## Quick start
 
 ```rust
