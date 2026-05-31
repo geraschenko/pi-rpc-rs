@@ -14,7 +14,10 @@ use tokio::sync::{Mutex, mpsc, oneshot};
 use tokio::task::JoinHandle;
 
 use super::error::PiError;
-use crate::types::{RpcCommand, RpcCommandKind, RpcEvent, RpcExtensionUIRequest, RpcResponse};
+use crate::types::{
+  DeserializationErrorContext, JsonErrorInfo, RpcCommand, RpcCommandKind, RpcEvent,
+  RpcExtensionUIRequest, RpcResponse, SessionEvent,
+};
 
 // ============================================================================
 // Configuration
@@ -76,7 +79,7 @@ const DEFAULT_TIMEOUT: Duration = Duration::from_secs(30);
 // ============================================================================
 
 type Subscribers = Arc<Mutex<Vec<mpsc::UnboundedSender<RpcEvent>>>>;
-type Pending = Arc<Mutex<HashMap<String, oneshot::Sender<RpcResponse>>>>;
+type Pending = Arc<Mutex<HashMap<String, oneshot::Sender<Result<RpcResponse, PiError>>>>>;
 
 /// A running pi RPC session.
 ///
@@ -92,7 +95,7 @@ pub struct PiSession {
   next_id: AtomicU64,
   reader_task: Option<JoinHandle<()>>,
   /// Collects stderr in the background for error reporting.
-  stderr_task: Option<JoinHandle<String>>,
+  stderr_task: Option<JoinHandle<()>>,
 }
 
 impl PiSession {
@@ -146,21 +149,23 @@ impl PiSession {
     let pending: Pending = Arc::new(Mutex::new(HashMap::new()));
 
     // Spawn stderr collector
+    let stderr_buf = Arc::new(Mutex::new(String::new()));
+    let stderr_task_buf = stderr_buf.clone();
     let stderr_task = tokio::spawn(async move {
       let mut reader = BufReader::new(stderr);
-      let mut buf = String::new();
       loop {
-        match reader.read_line(&mut buf).await {
+        let mut line = String::new();
+        match reader.read_line(&mut line).await {
           Ok(0) | Err(_) => break,
-          Ok(_) => {}
+          Ok(_) => stderr_task_buf.lock().await.push_str(&line),
         }
       }
-      buf
     });
 
     // Spawn reader task
     let reader_subscribers = subscribers.clone();
     let reader_pending = pending.clone();
+    let reader_stderr_buf = stderr_buf.clone();
     let reader_task = tokio::spawn(async move {
       let reader = BufReader::new(stdout);
       let mut lines = reader.lines();
@@ -169,7 +174,23 @@ impl PiSession {
         let line = match lines.next_line().await {
           Ok(Some(line)) => line,
           Ok(None) => break, // EOF — process exited
-          Err(_) => break,
+          Err(e) => {
+            fan_out(
+              &reader_subscribers,
+              RpcEvent::Session(SessionEvent::DeserializationError {
+                context: DeserializationErrorContext::JsonLine,
+                error: JsonErrorInfo {
+                  message: e.to_string(),
+                  line: 0,
+                  column: 0,
+                  category: "Io".into(),
+                },
+                line: None,
+              }),
+            )
+            .await;
+            break;
+          }
         };
 
         if line.is_empty() {
@@ -179,30 +200,73 @@ impl PiSession {
         // Parse as generic JSON first
         let value: serde_json::Value = match serde_json::from_str(&line) {
           Ok(v) => v,
-          Err(_) => continue, // Skip unparseable lines
+          Err(e) => {
+            fan_out(
+              &reader_subscribers,
+              RpcEvent::Session(SessionEvent::DeserializationError {
+                context: DeserializationErrorContext::JsonLine,
+                error: JsonErrorInfo::from(&e),
+                line: Some(line),
+              }),
+            )
+            .await;
+            continue;
+          }
         };
 
         let type_str = value.get("type").and_then(|v| v.as_str()).unwrap_or("");
 
         if type_str == "response" {
+          let response_id = value.get("id").and_then(|v| v.as_str()).map(str::to_string);
+
           // Deserialize as RpcResponse
           let response: RpcResponse = match serde_json::from_value(value) {
             Ok(r) => r,
-            Err(_) => continue,
+            Err(e) => {
+              let error_info = JsonErrorInfo::from(&e);
+              if let Some(id) = response_id {
+                let mut pending = reader_pending.lock().await;
+                if let Some(sender) = pending.remove(&id) {
+                  let _ = sender.send(Err(PiError::Json(e)));
+                }
+              }
+
+              fan_out(
+                &reader_subscribers,
+                RpcEvent::Session(SessionEvent::DeserializationError {
+                  context: DeserializationErrorContext::RpcResponse,
+                  error: error_info,
+                  line: Some(line),
+                }),
+              )
+              .await;
+              continue;
+            }
           };
 
           // Look up pending command by id
           if let Some(ref id) = response.id {
             let mut pending = reader_pending.lock().await;
             if let Some(sender) = pending.remove(id) {
-              let _ = sender.send(response);
+              let _ = sender.send(Ok(response));
             }
           }
         } else if type_str == "extension_ui_request" {
           // Deserialize as RpcExtensionUIRequest
           let request: RpcExtensionUIRequest = match serde_json::from_value(value) {
             Ok(r) => r,
-            Err(_) => continue,
+            Err(e) => {
+              fan_out(
+                &reader_subscribers,
+                RpcEvent::Session(SessionEvent::DeserializationError {
+                  context: DeserializationErrorContext::RpcExtensionUIRequest,
+                  error: JsonErrorInfo::from(&e),
+                  line: Some(line),
+                }),
+              )
+              .await;
+              continue;
+            }
           };
 
           let event = RpcEvent::ExtensionUI(request);
@@ -214,14 +278,37 @@ impl PiSession {
               let event = RpcEvent::Agent(agent_event);
               fan_out(&reader_subscribers, event).await;
             }
-            Err(_) => continue,
+            Err(e) => {
+              fan_out(
+                &reader_subscribers,
+                RpcEvent::Session(SessionEvent::DeserializationError {
+                  context: DeserializationErrorContext::AgentEvent,
+                  error: JsonErrorInfo::from(&e),
+                  line: Some(line),
+                }),
+              )
+              .await;
+            }
           }
         }
       }
 
-      // Process exited — close all pending commands and subscribers
+      // Process exited — fail pending commands and notify subscribers.
+      let stderr = reader_stderr_buf.lock().await.clone();
       let mut pending = reader_pending.lock().await;
-      pending.clear(); // Dropping oneshot senders signals RecvError to waiters
+      for (_, sender) in pending.drain() {
+        let _ = sender.send(Err(PiError::ProcessExited {
+          code: None,
+          stderr: stderr.clone(),
+        }));
+      }
+      drop(pending);
+
+      fan_out(
+        &reader_subscribers,
+        RpcEvent::Session(SessionEvent::ProcessExited { code: None, stderr }),
+      )
+      .await;
 
       let mut subs = reader_subscribers.lock().await;
       subs.clear(); // Dropping senders closes the receivers
@@ -313,9 +400,9 @@ impl PiSession {
 
     // Await response with timeout
     match tokio::time::timeout(timeout, rx).await {
-      Ok(Ok(response)) => Ok(response),
+      Ok(Ok(response)) => response,
       Ok(Err(_)) => {
-        // oneshot sender was dropped — process likely exited
+        // oneshot sender was dropped without an explicit error.
         Err(PiError::NotRunning)
       }
       Err(_) => {

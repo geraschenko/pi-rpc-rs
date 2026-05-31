@@ -654,6 +654,54 @@ where
 pub enum RpcEvent {
   Agent(AgentEvent),
   ExtensionUI(RpcExtensionUIRequest),
+  Session(SessionEvent),
+}
+
+/// Events emitted by the Rust session wrapper itself, rather than by pi's
+/// RPC stdout protocol.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[serde(tag = "type")]
+pub enum SessionEvent {
+  /// The pi process stdout closed, indicating that the process exited.
+  #[serde(rename = "session_process_exited")]
+  ProcessExited { code: Option<i32>, stderr: String },
+  /// A line from pi's stdout could not be parsed as the expected RPC message.
+  #[serde(rename = "session_deserialization_error")]
+  DeserializationError {
+    context: DeserializationErrorContext,
+    error: JsonErrorInfo,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    line: Option<String>,
+  },
+}
+
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum DeserializationErrorContext {
+  JsonLine,
+  RpcResponse,
+  RpcExtensionUIRequest,
+  AgentEvent,
+}
+
+/// Serializable summary of a serde_json error.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct JsonErrorInfo {
+  pub message: String,
+  pub line: usize,
+  pub column: usize,
+  pub category: String,
+}
+
+impl From<&serde_json::Error> for JsonErrorInfo {
+  fn from(error: &serde_json::Error) -> Self {
+    JsonErrorInfo {
+      message: error.to_string(),
+      line: error.line(),
+      column: error.column(),
+      category: format!("{:?}", error.classify()),
+    }
+  }
 }
 
 impl Serialize for RpcEvent {
@@ -661,6 +709,7 @@ impl Serialize for RpcEvent {
     match self {
       RpcEvent::Agent(event) => event.serialize(serializer),
       RpcEvent::ExtensionUI(req) => req.serialize(serializer),
+      RpcEvent::Session(event) => event.serialize(serializer),
     }
   }
 }
@@ -674,6 +723,9 @@ impl<'de> Deserialize<'de> for RpcEvent {
       let req: RpcExtensionUIRequest =
         serde_json::from_value(value).map_err(serde::de::Error::custom)?;
       Ok(RpcEvent::ExtensionUI(req))
+    } else if type_str.starts_with("session_") {
+      let event: SessionEvent = serde_json::from_value(value).map_err(serde::de::Error::custom)?;
+      Ok(RpcEvent::Session(event))
     } else {
       let event: AgentEvent = serde_json::from_value(value).map_err(serde::de::Error::custom)?;
       Ok(RpcEvent::Agent(event))

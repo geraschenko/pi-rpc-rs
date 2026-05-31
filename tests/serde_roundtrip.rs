@@ -865,6 +865,41 @@ fn rpc_event_extension_ui() {
   }
 }
 
+#[test]
+fn rpc_event_session_process_exited() {
+  let json = r#"{"type":"session_process_exited","code":1,"stderr":"boom"}"#;
+  let event: RpcEvent = serde_json::from_str(json).unwrap();
+  assert!(matches!(
+    event,
+    RpcEvent::Session(SessionEvent::ProcessExited {
+      code: Some(1),
+      ref stderr,
+    }) if stderr == "boom"
+  ));
+
+  let serialized = serde_json::to_value(&event).unwrap();
+  let expected: serde_json::Value = serde_json::from_str(json).unwrap();
+  assert_eq!(serialized, expected);
+}
+
+#[test]
+fn rpc_event_session_deserialization_error() {
+  let json = r#"{"type":"session_deserialization_error","context":"json_line","error":{"message":"expected value","line":1,"column":1,"category":"Syntax"},"line":"not json"}"#;
+  let event: RpcEvent = serde_json::from_str(json).unwrap();
+  assert!(matches!(
+    event,
+    RpcEvent::Session(SessionEvent::DeserializationError {
+      context: DeserializationErrorContext::JsonLine,
+      ref line,
+      ..
+    }) if line.as_deref() == Some("not json")
+  ));
+
+  let serialized = serde_json::to_value(&event).unwrap();
+  let expected: serde_json::Value = serde_json::from_str(json).unwrap();
+  assert_eq!(serialized, expected);
+}
+
 // ============================================================================
 // Extension UI types
 // ============================================================================

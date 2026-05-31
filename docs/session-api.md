@@ -5,7 +5,7 @@
 `PiSession` owns a `pi --mode rpc` child process and provides:
 
 - **Command methods** — one async method per RPC command, implemented directly on `PiSession`, with typed responses
-- **Event stream** — subscribe to agent events and extension UI requests
+- **Event stream** — subscribe to agent events, extension UI requests, and session lifecycle/protocol events
 - **Process lifecycle** — spawn, kill, drop
 
 All RPC types (`RpcCommand`, `RpcResponse`, `AgentEvent`, etc.) are hand-written in `src/types/`. See `src/types/README.md` for how they map to pi's TypeScript sources.
@@ -184,12 +184,20 @@ pub async fn subscribe(&self) -> mpsc::UnboundedReceiver<RpcEvent>;
 pub enum RpcEvent {
     Agent(AgentEvent),
     ExtensionUI(RpcExtensionUIRequest),
+    Session(SessionEvent),
 }
 ```
 
-It has a custom `Deserialize` impl that checks the `type` field: `"extension_ui_request"` → `ExtensionUI`, anything else → `Agent`.
+It has a custom `Deserialize` impl that checks the `type` field: `"extension_ui_request"` → `ExtensionUI`, `"session_*"` → `Session`, anything else → `Agent`.
 
-Every JSON line from pi's stdout that is not a response (i.e., `type` != `"response"`) becomes an `RpcEvent`. Lines with a recognized `AgentEvent` type become `RpcEvent::Agent(...)`, lines with `type == "extension_ui_request"` become `RpcEvent::ExtensionUI(...)`.
+Every valid JSON line from pi's stdout that is not a response (i.e., `type` != `"response"`) becomes an `RpcEvent`. Lines with a recognized `AgentEvent` type become `RpcEvent::Agent(...)`, lines with `type == "extension_ui_request"` become `RpcEvent::ExtensionUI(...)`.
+
+`RpcEvent::Session(...)` is emitted by this Rust wrapper for local session lifecycle/protocol conditions, currently:
+
+- `SessionEvent::ProcessExited { code, stderr }` when pi's stdout closes. With the current process architecture, `code` is reported as `None`; `stderr` contains stderr collected up to that point.
+- `SessionEvent::DeserializationError { context, error, line }` when a stdout line cannot be parsed/deserialized as the expected RPC message
+
+These session events are serializable/deserializable like the pi-originated events.
 
 Internally, a background reader task fans out events to all subscribers. Each call to `subscribe()` creates a new `mpsc::unbounded_channel`, registers the sender, and returns the receiver. Dead subscribers (dropped receivers) are automatically cleaned up when a send fails.
 
@@ -216,6 +224,8 @@ pub enum PiError {
 }
 ```
 
+`PiError::ProcessExited` is returned to commands that were awaiting a response when pi's stdout closes. Subscribers also receive `RpcEvent::Session(SessionEvent::ProcessExited { ... })`.
+
 ## File layout
 
 ```
@@ -233,19 +243,21 @@ PiSession
 ├── child: Option<tokio::process::Child>       // Option so kill() can take it
 ├── writer: Arc<Mutex<BufWriter<ChildStdin>>>   // serializes commands to stdin
 ├── subscribers: Arc<Mutex<Vec<mpsc::UnboundedSender<RpcEvent>>>>
-├── pending: Arc<Mutex<HashMap<String, oneshot::Sender<RpcResponse>>>>
+├── pending: Arc<Mutex<HashMap<String, oneshot::Sender<Result<RpcResponse, PiError>>>>>
 ├── next_id: AtomicU64
-├── reader_task: JoinHandle<()>    // background task reading stdout
-└── stderr_task: JoinHandle<String> // collects stderr for error reporting
+├── reader_task: JoinHandle<()> // background task reading stdout
+└── stderr_task: JoinHandle<()> // collects stderr for error reporting
 
 reader_task loop:
   1. Read line from stdout
-  2. Parse as serde_json::Value
+  2. Parse as serde_json::Value; on failure, emit RpcEvent::Session(SessionEvent::DeserializationError)
   3. Check value["type"]:
      - "response" → deserialize as RpcResponse, look up pending[id], send via oneshot
      - "extension_ui_request" → deserialize as RpcExtensionUIRequest, wrap in RpcEvent::ExtensionUI, fan out
      - anything else → deserialize as AgentEvent, wrap in RpcEvent::Agent, fan out
-  4. Fan out: clone and send to all subscribers, removing any whose send fails
+  4. On typed deserialization failure, emit RpcEvent::Session(SessionEvent::DeserializationError)
+  5. On stdout EOF, fail pending commands with PiError::ProcessExited and emit RpcEvent::Session(SessionEvent::ProcessExited)
+  6. Fan out: clone and send to all subscribers, removing any whose send fails
 ```
 
 ### send_command (internal helper)

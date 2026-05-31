@@ -69,6 +69,9 @@ async fn main() {
           RpcEvent::ExtensionUI(req) => {
             eprintln!("[event #{count}] ExtensionUI id={} {:?}", req.id, req.kind);
           }
+          RpcEvent::Session(event) => {
+            eprintln!("[event #{count}] Session {:?}", event);
+          }
         }
       }
     }
