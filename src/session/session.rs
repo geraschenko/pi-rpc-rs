@@ -327,7 +327,9 @@ impl PiSession {
 
 impl Drop for PiSession {
   fn drop(&mut self) {
-    let _ = self.process_control_tx.send(ProcessControl::Kill { ack: None });
+    let _ = self
+      .process_control_tx
+      .send(ProcessControl::Kill { ack: None });
     self.reader_cancel.cancel();
     self.supervisor_cancel.cancel();
 
@@ -546,7 +548,9 @@ fn spawn_supervisor_task(
       }
     }
 
-    let code = exit_status.and_then(|status| status.ok()).and_then(|status| status.code());
+    let code = exit_status
+      .and_then(|status| status.ok())
+      .and_then(|status| status.code());
     running.store(false, Ordering::Release);
 
     fail_pending_process_exited(&pending, code, stderr.clone()).await;
