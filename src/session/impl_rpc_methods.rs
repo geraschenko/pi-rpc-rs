@@ -337,10 +337,18 @@ impl PiSession {
   // ========================================================================
 
   /// Execute a bash command.
-  pub async fn bash(&self, command: &str) -> Result<BashResult, PiError> {
+  ///
+  /// If `exclude_from_context` is true, the command output is recorded in the
+  /// session but not sent to the LLM context.
+  pub async fn bash(
+    &self,
+    command: &str,
+    exclude_from_context: bool,
+  ) -> Result<BashResult, PiError> {
     let resp = self
       .send_command(RpcCommandKind::Bash {
         command: command.to_string(),
+        exclude_from_context,
       })
       .await?;
     match_response!(resp, RpcResponseKind::Bash(data) => data)

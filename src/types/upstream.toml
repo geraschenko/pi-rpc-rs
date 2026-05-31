@@ -4,7 +4,7 @@
 # crate at build time. Keep it in sync with src/types/README.md when bumping
 # the upstream pi version.
 
-version = "v0.75.3"
+version = "v0.78.0"
 repository = "https://github.com/earendil-works/pi"
 
 [[files]]

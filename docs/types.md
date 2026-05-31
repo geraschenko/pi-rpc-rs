@@ -26,7 +26,7 @@ Defined in `rpc-types.ts` as `RpcCommand`. Discriminated union on `type` field. 
 | `set_auto_compaction`     | `enabled`                                  | Toggle auto-compaction.                                                       |
 | `set_auto_retry`          | `enabled`                                  | Toggle auto-retry.                                                            |
 | `abort_retry`             | —                                          | Cancel in-progress retry.                                                     |
-| `bash`                    | `command`                                  | Execute shell command (added to context on next prompt).                      |
+| `bash`                    | `command`, `excludeFromContext`            | Execute shell command; optionally exclude output from LLM context.            |
 | `abort_bash`              | —                                          | Cancel running bash.                                                          |
 | `get_session_stats`       | —                                          | Token usage and cost.                                                         |
 | `export_html`             | `outputPath?`                              | Export session to HTML.                                                       |

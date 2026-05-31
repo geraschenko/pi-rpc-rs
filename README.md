@@ -5,7 +5,7 @@ A Rust crate providing a typed, ergonomic interface to
 This is a faithful Rust analog of pi's `AgentSession` — exposing the full
 RPC protocol with type safety.
 
-**Compatible with pi v0.75.3.** This version is tracked in
+**Compatible with pi v0.78.0.** This version is tracked in
 `src/types/upstream.toml`.
 
 ## Compatibility
@@ -16,6 +16,7 @@ pi version, use the corresponding old `pi-rpc-rs` release.
 
 | `pi-rpc-rs` version | Compatible pi version |
 | ------------------- | --------------------- |
+| `0.1.1`             | `v0.78.0`             |
 | `0.1.0`             | `v0.75.3`             |
 
 ## Quick start

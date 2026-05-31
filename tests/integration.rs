@@ -394,7 +394,10 @@ async fn test_get_session_stats() {
 async fn test_bash_echo() {
   let session = spawn_test_session().await;
 
-  let result = session.bash("echo hello").await.expect("bash failed");
+  let result = session
+    .bash("echo hello", false)
+    .await
+    .expect("bash failed");
 
   assert!(
     result.output.contains("hello"),
@@ -411,7 +414,7 @@ async fn test_bash_echo() {
 async fn test_bash_exit_code() {
   let session = spawn_test_session().await;
 
-  let result = session.bash("exit 42").await.expect("bash failed");
+  let result = session.bash("exit 42", false).await.expect("bash failed");
 
   assert_eq!(result.exit_code, Some(42.0));
 }

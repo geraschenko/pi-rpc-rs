@@ -148,8 +148,9 @@ session.abort_retry().await?;         // -> ()
 ### Bash
 
 ```rust
-session.bash("ls -la").await?;  // -> BashResult
-session.abort_bash().await?;    // -> ()
+session.bash("ls -la", false).await?;  // -> BashResult
+session.bash("secret command", true).await?;  // exclude output from LLM context
+session.abort_bash().await?;          // -> ()
 ```
 
 ### Commands

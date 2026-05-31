@@ -100,11 +100,28 @@ fn command_bash_serialize() {
     id: Some("7".into()),
     kind: RpcCommandKind::Bash {
       command: "echo hello".into(),
+      exclude_from_context: true,
     },
   };
   let json = serde_json::to_value(&cmd).unwrap();
   assert_eq!(json["type"], "bash");
   assert_eq!(json["command"], "echo hello");
+  assert_eq!(json["excludeFromContext"], true);
+}
+
+#[test]
+fn command_bash_includes_no_exclude_from_context_when_false() {
+  let cmd = RpcCommand {
+    id: Some("7b".into()),
+    kind: RpcCommandKind::Bash {
+      command: "echo hello".into(),
+      exclude_from_context: false,
+    },
+  };
+  let json = serde_json::to_value(&cmd).unwrap();
+  assert_eq!(json["type"], "bash");
+  assert_eq!(json["command"], "echo hello");
+  assert!(json.get("excludeFromContext").is_none());
 }
 
 #[test]
@@ -248,6 +265,7 @@ fn command_roundtrip() {
     },
     RpcCommandKind::Bash {
       command: "ls".into(),
+      exclude_from_context: false,
     },
   ];
 

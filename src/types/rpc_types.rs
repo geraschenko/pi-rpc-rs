@@ -13,6 +13,10 @@ use super::bash_executor::*;
 use super::compaction::*;
 use super::source_info::*;
 
+fn is_false(value: &bool) -> bool {
+  !*value
+}
+
 // ============================================================================
 // Small enums for limited-option string fields
 // ============================================================================
@@ -172,7 +176,15 @@ pub enum RpcCommandKind {
 
   // -- Bash --
   #[serde(rename = "bash")]
-  Bash { command: String },
+  Bash {
+    command: String,
+    #[serde(
+      rename = "excludeFromContext",
+      default,
+      skip_serializing_if = "is_false"
+    )]
+    exclude_from_context: bool,
+  },
   #[serde(rename = "abort_bash")]
   AbortBash,
 

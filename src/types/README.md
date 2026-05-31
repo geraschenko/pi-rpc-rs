@@ -1,7 +1,7 @@
 # pi RPC Type Definitions
 
 Hand-written Rust types mirroring the TypeScript definitions from
-[pi](https://github.com/earendil-works/pi) **v0.75.3**.
+[pi](https://github.com/earendil-works/pi) **v0.78.0**.
 
 These files are **not auto-generated** — they were written by hand to closely
 match the TypeScript sources. Each file has a doc comment at the top naming the
