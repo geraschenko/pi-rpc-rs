@@ -1,9 +1,22 @@
 # pi-rpc-rs
 
 A Rust crate providing a typed, ergonomic interface to
-[pi](https://github.com/badlogic/pi-mono)'s RPC mode (`pi --mode rpc`).
+[pi](https://github.com/earendil-works/pi)'s RPC mode (`pi --mode rpc`).
 This is a faithful Rust analog of pi's `AgentSession` — exposing the full
 RPC protocol with type safety.
+
+**Compatible with pi v0.75.3.** This version is tracked in
+`src/types/upstream.toml`.
+
+## Compatibility
+
+This crate tracks pi's RPC wire protocol for a specific upstream pi version.
+Older pi versions are not supported by newer crate releases; if you need an old
+pi version, use the corresponding old `pi-rpc-rs` release.
+
+| `pi-rpc-rs` version | Compatible pi version |
+| ------------------- | --------------------- |
+| `0.1.0`             | `v0.75.3`             |
 
 ## Quick start
 
@@ -72,7 +85,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
 ## Requirements
 
-[pi](https://github.com/badlogic/pi-mono) must be installed and in `PATH`, and
+[pi](https://github.com/earendil-works/pi) must be installed and in `PATH`, and
 you must have API keys or subscriptions set up so that you can run `pi` with the
 given provider/model.
 
