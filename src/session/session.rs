@@ -5,13 +5,14 @@
 use std::collections::HashMap;
 use std::path::PathBuf;
 use std::sync::Arc;
-use std::sync::atomic::{AtomicU64, Ordering};
+use std::sync::atomic::{AtomicBool, AtomicU64, Ordering};
 use std::time::Duration;
 
 use tokio::io::{AsyncBufReadExt, AsyncWriteExt, BufReader, BufWriter};
-use tokio::process::{Child, Command};
+use tokio::process::{Child, ChildStderr, ChildStdout, Command};
 use tokio::sync::{Mutex, mpsc, oneshot};
 use tokio::task::JoinHandle;
+use tokio_util::sync::CancellationToken;
 
 use super::error::PiError;
 use crate::types::{
@@ -81,6 +82,12 @@ const DEFAULT_TIMEOUT: Duration = Duration::from_secs(30);
 type Subscribers = Arc<Mutex<Vec<mpsc::UnboundedSender<RpcEvent>>>>;
 type Pending = Arc<Mutex<HashMap<String, oneshot::Sender<Result<RpcResponse, PiError>>>>>;
 
+enum ProcessControl {
+  Kill {
+    ack: Option<oneshot::Sender<Result<(), PiError>>>,
+  },
+}
+
 /// A running pi RPC session.
 ///
 /// Owns the child process and provides:
@@ -88,14 +95,16 @@ type Pending = Arc<Mutex<HashMap<String, oneshot::Sender<Result<RpcResponse, PiE
 /// - `subscribe` for streaming events
 /// - `kill` for explicit shutdown (also happens on drop)
 pub struct PiSession {
-  child: Option<Child>,
   writer: Arc<Mutex<BufWriter<tokio::process::ChildStdin>>>,
   subscribers: Subscribers,
   pending: Pending,
   next_id: AtomicU64,
+  running: Arc<AtomicBool>,
+  process_control_tx: mpsc::UnboundedSender<ProcessControl>,
+  reader_cancel: CancellationToken,
+  supervisor_cancel: CancellationToken,
   reader_task: Option<JoinHandle<()>>,
-  /// Collects stderr in the background for error reporting.
-  stderr_task: Option<JoinHandle<()>>,
+  supervisor_task: Option<JoinHandle<()>>,
 }
 
 impl PiSession {
@@ -136,7 +145,8 @@ impl PiSession {
     cmd
       .stdin(std::process::Stdio::piped())
       .stdout(std::process::Stdio::piped())
-      .stderr(std::process::Stdio::piped());
+      .stderr(std::process::Stdio::piped())
+      .kill_on_drop(true);
 
     let mut child = cmd.spawn()?;
 
@@ -147,181 +157,39 @@ impl PiSession {
     let writer = Arc::new(Mutex::new(BufWriter::new(stdin)));
     let subscribers: Subscribers = Arc::new(Mutex::new(Vec::new()));
     let pending: Pending = Arc::new(Mutex::new(HashMap::new()));
+    let running = Arc::new(AtomicBool::new(true));
+    let (process_control_tx, process_control_rx) = mpsc::unbounded_channel();
 
-    // Spawn stderr collector
-    let stderr_buf = Arc::new(Mutex::new(String::new()));
-    let stderr_task_buf = stderr_buf.clone();
-    let stderr_task = tokio::spawn(async move {
-      let mut reader = BufReader::new(stderr);
-      loop {
-        let mut line = String::new();
-        match reader.read_line(&mut line).await {
-          Ok(0) | Err(_) => break,
-          Ok(_) => stderr_task_buf.lock().await.push_str(&line),
-        }
-      }
-    });
+    let reader_cancel = CancellationToken::new();
+    let supervisor_cancel = CancellationToken::new();
 
-    // Spawn reader task
-    let reader_subscribers = subscribers.clone();
-    let reader_pending = pending.clone();
-    let reader_stderr_buf = stderr_buf.clone();
-    let reader_task = tokio::spawn(async move {
-      let reader = BufReader::new(stdout);
-      let mut lines = reader.lines();
-
-      loop {
-        let line = match lines.next_line().await {
-          Ok(Some(line)) => line,
-          Ok(None) => break, // EOF — process exited
-          Err(e) => {
-            fan_out(
-              &reader_subscribers,
-              RpcEvent::Session(SessionEvent::DeserializationError {
-                context: DeserializationErrorContext::JsonLine,
-                error: JsonErrorInfo {
-                  message: e.to_string(),
-                  line: 0,
-                  column: 0,
-                  category: "Io".into(),
-                },
-                line: None,
-              }),
-            )
-            .await;
-            break;
-          }
-        };
-
-        if line.is_empty() {
-          continue;
-        }
-
-        // Parse as generic JSON first
-        let value: serde_json::Value = match serde_json::from_str(&line) {
-          Ok(v) => v,
-          Err(e) => {
-            fan_out(
-              &reader_subscribers,
-              RpcEvent::Session(SessionEvent::DeserializationError {
-                context: DeserializationErrorContext::JsonLine,
-                error: JsonErrorInfo::from(&e),
-                line: Some(line),
-              }),
-            )
-            .await;
-            continue;
-          }
-        };
-
-        let type_str = value.get("type").and_then(|v| v.as_str()).unwrap_or("");
-
-        if type_str == "response" {
-          let response_id = value.get("id").and_then(|v| v.as_str()).map(str::to_string);
-
-          // Deserialize as RpcResponse
-          let response: RpcResponse = match serde_json::from_value(value) {
-            Ok(r) => r,
-            Err(e) => {
-              let error_info = JsonErrorInfo::from(&e);
-              if let Some(id) = response_id {
-                let mut pending = reader_pending.lock().await;
-                if let Some(sender) = pending.remove(&id) {
-                  let _ = sender.send(Err(PiError::Json(e)));
-                }
-              }
-
-              fan_out(
-                &reader_subscribers,
-                RpcEvent::Session(SessionEvent::DeserializationError {
-                  context: DeserializationErrorContext::RpcResponse,
-                  error: error_info,
-                  line: Some(line),
-                }),
-              )
-              .await;
-              continue;
-            }
-          };
-
-          // Look up pending command by id
-          if let Some(ref id) = response.id {
-            let mut pending = reader_pending.lock().await;
-            if let Some(sender) = pending.remove(id) {
-              let _ = sender.send(Ok(response));
-            }
-          }
-        } else if type_str == "extension_ui_request" {
-          // Deserialize as RpcExtensionUIRequest
-          let request: RpcExtensionUIRequest = match serde_json::from_value(value) {
-            Ok(r) => r,
-            Err(e) => {
-              fan_out(
-                &reader_subscribers,
-                RpcEvent::Session(SessionEvent::DeserializationError {
-                  context: DeserializationErrorContext::RpcExtensionUIRequest,
-                  error: JsonErrorInfo::from(&e),
-                  line: Some(line),
-                }),
-              )
-              .await;
-              continue;
-            }
-          };
-
-          let event = RpcEvent::ExtensionUI(request);
-          fan_out(&reader_subscribers, event).await;
-        } else {
-          // Deserialize as AgentEvent
-          match serde_json::from_value(value) {
-            Ok(agent_event) => {
-              let event = RpcEvent::Agent(agent_event);
-              fan_out(&reader_subscribers, event).await;
-            }
-            Err(e) => {
-              fan_out(
-                &reader_subscribers,
-                RpcEvent::Session(SessionEvent::DeserializationError {
-                  context: DeserializationErrorContext::AgentEvent,
-                  error: JsonErrorInfo::from(&e),
-                  line: Some(line),
-                }),
-              )
-              .await;
-            }
-          }
-        }
-      }
-
-      // Process exited — fail pending commands and notify subscribers.
-      let stderr = reader_stderr_buf.lock().await.clone();
-      let mut pending = reader_pending.lock().await;
-      for (_, sender) in pending.drain() {
-        let _ = sender.send(Err(PiError::ProcessExited {
-          code: None,
-          stderr: stderr.clone(),
-        }));
-      }
-      drop(pending);
-
-      fan_out(
-        &reader_subscribers,
-        RpcEvent::Session(SessionEvent::ProcessExited { code: None, stderr }),
-      )
-      .await;
-
-      let mut subs = reader_subscribers.lock().await;
-      subs.clear(); // Dropping senders closes the receivers
-    });
+    let reader_task = spawn_reader_task(
+      stdout,
+      subscribers.clone(),
+      pending.clone(),
+      reader_cancel.clone(),
+    );
+    let supervisor_task = spawn_supervisor_task(
+      child,
+      stderr,
+      process_control_rx,
+      subscribers.clone(),
+      pending.clone(),
+      running.clone(),
+      supervisor_cancel.clone(),
+    );
 
     let session = PiSession {
-      child: Some(child),
       writer,
       subscribers,
       pending,
       next_id: AtomicU64::new(1),
+      running,
+      process_control_tx,
+      reader_cancel,
+      supervisor_cancel,
       reader_task: Some(reader_task),
-      stderr_task: Some(stderr_task),
+      supervisor_task: Some(supervisor_task),
     };
 
     // Wait for pi to be ready before returning. Pi doesn't emit any
@@ -359,7 +227,7 @@ impl PiSession {
     timeout: Duration,
   ) -> Result<RpcResponse, PiError> {
     // Check if process is still running
-    if self.child.is_none() {
+    if !self.running.load(Ordering::Acquire) {
       return Err(PiError::NotRunning);
     }
 
@@ -426,16 +294,32 @@ impl PiSession {
 
   /// Kill the pi process.
   pub async fn kill(&mut self) -> Result<(), PiError> {
-    if let Some(ref mut child) = self.child {
-      child.kill().await?;
-      self.child = None;
+    if !self.running.load(Ordering::Acquire) {
+      return Ok(());
     }
-    Ok(())
+
+    let (ack_tx, ack_rx) = oneshot::channel();
+    if self
+      .process_control_tx
+      .send(ProcessControl::Kill { ack: Some(ack_tx) })
+      .is_err()
+    {
+      self.running.store(false, Ordering::Release);
+      return Ok(());
+    }
+
+    match ack_rx.await {
+      Ok(result) => result,
+      Err(_) => Ok(()),
+    }
   }
 
-  /// Wait for the reader task to finish (useful after kill).
+  /// Wait for background tasks to finish (useful after kill).
   pub async fn wait_closed(&mut self) {
     if let Some(task) = self.reader_task.take() {
+      let _ = task.await;
+    }
+    if let Some(task) = self.supervisor_task.take() {
       let _ = task.await;
     }
   }
@@ -443,17 +327,254 @@ impl PiSession {
 
 impl Drop for PiSession {
   fn drop(&mut self) {
-    if let Some(ref mut child) = self.child {
-      // Best-effort kill. start_kill() is non-async and sends SIGKILL.
-      let _ = child.start_kill();
-    }
-    // Abort the reader task so it doesn't outlive the session.
+    let _ = self.process_control_tx.send(ProcessControl::Kill { ack: None });
+    self.reader_cancel.cancel();
+    self.supervisor_cancel.cancel();
+
     if let Some(task) = self.reader_task.take() {
       task.abort();
     }
-    if let Some(task) = self.stderr_task.take() {
+    if let Some(task) = self.supervisor_task.take() {
       task.abort();
     }
+  }
+}
+
+fn spawn_reader_task(
+  stdout: ChildStdout,
+  subscribers: Subscribers,
+  pending: Pending,
+  cancel: CancellationToken,
+) -> JoinHandle<()> {
+  tokio::spawn(async move {
+    let reader = BufReader::new(stdout);
+    let mut lines = reader.lines();
+
+    loop {
+      let line = tokio::select! {
+        _ = cancel.cancelled() => break,
+        result = lines.next_line() => match result {
+          Ok(Some(line)) => line,
+          Ok(None) => break,
+          Err(e) => {
+            fan_out(
+              &subscribers,
+              RpcEvent::Session(SessionEvent::DeserializationError {
+                context: DeserializationErrorContext::JsonLine,
+                error: JsonErrorInfo {
+                  message: e.to_string(),
+                  line: 0,
+                  column: 0,
+                  category: "Io".into(),
+                },
+                line: None,
+              }),
+            )
+            .await;
+            break;
+          }
+        }
+      };
+
+      if line.is_empty() {
+        continue;
+      }
+
+      // Parse as generic JSON first
+      let value: serde_json::Value = match serde_json::from_str(&line) {
+        Ok(v) => v,
+        Err(e) => {
+          fan_out(
+            &subscribers,
+            RpcEvent::Session(SessionEvent::DeserializationError {
+              context: DeserializationErrorContext::JsonLine,
+              error: JsonErrorInfo::from(&e),
+              line: Some(line),
+            }),
+          )
+          .await;
+          continue;
+        }
+      };
+
+      let type_str = value.get("type").and_then(|v| v.as_str()).unwrap_or("");
+
+      if type_str == "response" {
+        let response_id = value.get("id").and_then(|v| v.as_str()).map(str::to_string);
+
+        // Deserialize as RpcResponse
+        let response: RpcResponse = match serde_json::from_value(value) {
+          Ok(r) => r,
+          Err(e) => {
+            let error_info = JsonErrorInfo::from(&e);
+            if let Some(id) = response_id {
+              let mut pending = pending.lock().await;
+              if let Some(sender) = pending.remove(&id) {
+                let _ = sender.send(Err(PiError::Json(e)));
+              }
+            }
+
+            fan_out(
+              &subscribers,
+              RpcEvent::Session(SessionEvent::DeserializationError {
+                context: DeserializationErrorContext::RpcResponse,
+                error: error_info,
+                line: Some(line),
+              }),
+            )
+            .await;
+            continue;
+          }
+        };
+
+        // Look up pending command by id
+        if let Some(ref id) = response.id {
+          let mut pending = pending.lock().await;
+          if let Some(sender) = pending.remove(id) {
+            let _ = sender.send(Ok(response));
+          }
+        }
+      } else if type_str == "extension_ui_request" {
+        // Deserialize as RpcExtensionUIRequest
+        let request: RpcExtensionUIRequest = match serde_json::from_value(value) {
+          Ok(r) => r,
+          Err(e) => {
+            fan_out(
+              &subscribers,
+              RpcEvent::Session(SessionEvent::DeserializationError {
+                context: DeserializationErrorContext::RpcExtensionUIRequest,
+                error: JsonErrorInfo::from(&e),
+                line: Some(line),
+              }),
+            )
+            .await;
+            continue;
+          }
+        };
+
+        let event = RpcEvent::ExtensionUI(request);
+        fan_out(&subscribers, event).await;
+      } else {
+        // Deserialize as AgentEvent
+        match serde_json::from_value(value) {
+          Ok(agent_event) => {
+            let event = RpcEvent::Agent(agent_event);
+            fan_out(&subscribers, event).await;
+          }
+          Err(e) => {
+            fan_out(
+              &subscribers,
+              RpcEvent::Session(SessionEvent::DeserializationError {
+                context: DeserializationErrorContext::AgentEvent,
+                error: JsonErrorInfo::from(&e),
+                line: Some(line),
+              }),
+            )
+            .await;
+          }
+        }
+      }
+    }
+  })
+}
+
+fn spawn_supervisor_task(
+  mut child: Child,
+  stderr: ChildStderr,
+  mut control_rx: mpsc::UnboundedReceiver<ProcessControl>,
+  subscribers: Subscribers,
+  pending: Pending,
+  running: Arc<AtomicBool>,
+  cancel: CancellationToken,
+) -> JoinHandle<()> {
+  tokio::spawn(async move {
+    let mut stderr_reader = BufReader::new(stderr);
+    let mut stderr = String::new();
+    let mut stderr_open = true;
+    let mut exit_status = None;
+    let mut kill_ack = None;
+
+    while exit_status.is_none() {
+      let mut stderr_line = String::new();
+      tokio::select! {
+        _ = cancel.cancelled() => {
+          let _ = child.start_kill();
+          return;
+        }
+        result = stderr_reader.read_line(&mut stderr_line), if stderr_open => {
+          match result {
+            Ok(0) => stderr_open = false,
+            Ok(_) => stderr.push_str(&stderr_line),
+            Err(_) => stderr_open = false,
+          }
+        }
+        status = child.wait() => {
+          exit_status = Some(status);
+        }
+        command = control_rx.recv() => {
+          match command {
+            Some(ProcessControl::Kill { ack }) => {
+              kill_ack = ack;
+              if let Err(e) = child.start_kill() {
+                // start_kill can race with natural process exit. In that case,
+                // still wait for and report the real exit status.
+                if e.kind() != std::io::ErrorKind::InvalidInput {
+                  if let Some(ack) = kill_ack.take() {
+                    let _ = ack.send(Err(PiError::Io(e)));
+                  }
+                  return;
+                }
+              }
+              exit_status = Some(child.wait().await);
+            }
+            None => {
+              let _ = child.start_kill();
+              exit_status = Some(child.wait().await);
+            }
+          }
+        }
+      }
+    }
+
+    // Once the child has exited, stderr should close. Drain any remaining data.
+    while stderr_open {
+      let mut stderr_line = String::new();
+      match stderr_reader.read_line(&mut stderr_line).await {
+        Ok(0) => break,
+        Ok(_) => stderr.push_str(&stderr_line),
+        Err(_) => break,
+      }
+    }
+
+    let code = exit_status.and_then(|status| status.ok()).and_then(|status| status.code());
+    running.store(false, Ordering::Release);
+
+    fail_pending_process_exited(&pending, code, stderr.clone()).await;
+    fan_out(
+      &subscribers,
+      RpcEvent::Session(SessionEvent::ProcessExited {
+        code,
+        stderr: stderr.clone(),
+      }),
+    )
+    .await;
+
+    if let Some(ack) = kill_ack {
+      let _ = ack.send(Ok(()));
+    }
+
+    let mut subs = subscribers.lock().await;
+    subs.clear();
+  })
+}
+
+async fn fail_pending_process_exited(pending: &Pending, code: Option<i32>, stderr: String) {
+  let mut pending = pending.lock().await;
+  for (_, sender) in pending.drain() {
+    let _ = sender.send(Err(PiError::ProcessExited {
+      code,
+      stderr: stderr.clone(),
+    }));
   }
 }
 

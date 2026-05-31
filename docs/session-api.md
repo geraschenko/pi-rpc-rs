@@ -194,7 +194,7 @@ Every valid JSON line from pi's stdout that is not a response (i.e., `type` != `
 
 `RpcEvent::Session(...)` is emitted by this Rust wrapper for local session lifecycle/protocol conditions, currently:
 
-- `SessionEvent::ProcessExited { code, stderr }` when pi's stdout closes. With the current process architecture, `code` is reported as `None`; `stderr` contains stderr collected up to that point.
+- `SessionEvent::ProcessExited { code, stderr }` when the pi process exits. `code` is populated from the child exit status when available; `stderr` contains stderr collected up to exit.
 - `SessionEvent::DeserializationError { context, error, line }` when a stdout line cannot be parsed/deserialized as the expected RPC message
 
 These session events are serializable/deserializable like the pi-originated events.
@@ -224,7 +224,7 @@ pub enum PiError {
 }
 ```
 
-`PiError::ProcessExited` is returned to commands that were awaiting a response when pi's stdout closes. Subscribers also receive `RpcEvent::Session(SessionEvent::ProcessExited { ... })`.
+`PiError::ProcessExited` is returned to commands that were awaiting a response when the pi process exits. Subscribers also receive `RpcEvent::Session(SessionEvent::ProcessExited { ... })`. Intentional `kill()` also emits `ProcessExited`.
 
 ## File layout
 
@@ -240,24 +240,36 @@ src/session/
 
 ```
 PiSession
-├── child: Option<tokio::process::Child>       // Option so kill() can take it
 ├── writer: Arc<Mutex<BufWriter<ChildStdin>>>   // serializes commands to stdin
 ├── subscribers: Arc<Mutex<Vec<mpsc::UnboundedSender<RpcEvent>>>>
 ├── pending: Arc<Mutex<HashMap<String, oneshot::Sender<Result<RpcResponse, PiError>>>>>
 ├── next_id: AtomicU64
-├── reader_task: JoinHandle<()> // background task reading stdout
-└── stderr_task: JoinHandle<()> // collects stderr for error reporting
+├── running: Arc<AtomicBool>
+├── process_control_tx: mpsc::UnboundedSender<ProcessControl>
+├── reader_cancel: CancellationToken
+├── supervisor_cancel: CancellationToken
+├── reader_task: JoinHandle<()>     // owns stdout; parses protocol messages
+└── supervisor_task: JoinHandle<()> // owns Child + stderr; manages process lifecycle
 
 reader_task loop:
-  1. Read line from stdout
+  1. Read line from stdout, unless cancelled
   2. Parse as serde_json::Value; on failure, emit RpcEvent::Session(SessionEvent::DeserializationError)
   3. Check value["type"]:
      - "response" → deserialize as RpcResponse, look up pending[id], send via oneshot
      - "extension_ui_request" → deserialize as RpcExtensionUIRequest, wrap in RpcEvent::ExtensionUI, fan out
      - anything else → deserialize as AgentEvent, wrap in RpcEvent::Agent, fan out
   4. On typed deserialization failure, emit RpcEvent::Session(SessionEvent::DeserializationError)
-  5. On stdout EOF, fail pending commands with PiError::ProcessExited and emit RpcEvent::Session(SessionEvent::ProcessExited)
+  5. On stdout EOF, exit; process-exit handling belongs to supervisor_task
   6. Fan out: clone and send to all subscribers, removing any whose send fails
+
+supervisor_task loop:
+  1. Own the tokio Child and stderr pipe
+  2. Collect stderr while concurrently waiting for child exit, kill requests, or cancellation
+  3. On child exit, drain remaining stderr
+  4. Mark the session not running
+  5. Fail pending commands with PiError::ProcessExited { code, stderr }
+  6. Emit RpcEvent::Session(SessionEvent::ProcessExited { code, stderr })
+  7. Close subscribers
 ```
 
 ### send_command (internal helper)
