@@ -539,12 +539,14 @@ fn spawn_supervisor_task(
     }
 
     // Once the child has exited, stderr should close. Drain any remaining data.
-    while stderr_open {
-      let mut stderr_line = String::new();
-      match stderr_reader.read_line(&mut stderr_line).await {
-        Ok(0) => break,
-        Ok(_) => stderr.push_str(&stderr_line),
-        Err(_) => break,
+    if stderr_open {
+      loop {
+        let mut stderr_line = String::new();
+        match stderr_reader.read_line(&mut stderr_line).await {
+          Ok(0) => break,
+          Ok(_) => stderr.push_str(&stderr_line),
+          Err(_) => break,
+        }
       }
     }
 
