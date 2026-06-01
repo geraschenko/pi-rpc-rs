@@ -5,6 +5,7 @@
 //! files and scroll them together to see how they correspond.
 
 use serde::{Deserialize, Serialize};
+use strum::{AsRefStr, Display};
 
 use super::agent::*;
 use super::agent_session::*;
@@ -87,8 +88,9 @@ pub struct RpcCommand {
   pub kind: RpcCommandKind,
 }
 
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, AsRefStr, Display)]
 #[serde(tag = "type")]
+#[strum(serialize_all = "snake_case")]
 pub enum RpcCommandKind {
   // -- Prompting --
   #[serde(rename = "prompt")]

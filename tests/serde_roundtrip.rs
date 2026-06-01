@@ -280,6 +280,129 @@ fn command_roundtrip() {
   }
 }
 
+#[test]
+fn command_kind_wire_names() {
+  let cases = [
+    (RpcCommandKind::GetState, "get_state"),
+    (RpcCommandKind::Abort, "abort"),
+    (RpcCommandKind::CycleModel, "cycle_model"),
+    (RpcCommandKind::CycleThinkingLevel, "cycle_thinking_level"),
+    (RpcCommandKind::GetAvailableModels, "get_available_models"),
+    (RpcCommandKind::GetMessages, "get_messages"),
+    (RpcCommandKind::GetCommands, "get_commands"),
+    (RpcCommandKind::GetSessionStats, "get_session_stats"),
+    (RpcCommandKind::Clone, "clone"),
+    (RpcCommandKind::GetForkMessages, "get_fork_messages"),
+    (
+      RpcCommandKind::GetLastAssistantText,
+      "get_last_assistant_text",
+    ),
+    (RpcCommandKind::AbortBash, "abort_bash"),
+    (RpcCommandKind::AbortRetry, "abort_retry"),
+    (
+      RpcCommandKind::SetAutoCompaction { enabled: true },
+      "set_auto_compaction",
+    ),
+    (
+      RpcCommandKind::SetAutoRetry { enabled: false },
+      "set_auto_retry",
+    ),
+    (
+      RpcCommandKind::Prompt {
+        message: "hi".into(),
+        images: None,
+        streaming_behavior: None,
+      },
+      "prompt",
+    ),
+    (
+      RpcCommandKind::Steer {
+        message: "hi".into(),
+        images: None,
+      },
+      "steer",
+    ),
+    (
+      RpcCommandKind::FollowUp {
+        message: "hi".into(),
+        images: None,
+      },
+      "follow_up",
+    ),
+    (
+      RpcCommandKind::NewSession {
+        parent_session: None,
+      },
+      "new_session",
+    ),
+    (
+      RpcCommandKind::SetModel {
+        provider: "p".into(),
+        model_id: "m".into(),
+      },
+      "set_model",
+    ),
+    (
+      RpcCommandKind::SetThinkingLevel {
+        level: ThinkingLevel::Medium,
+      },
+      "set_thinking_level",
+    ),
+    (
+      RpcCommandKind::SetSteeringMode {
+        mode: QueueMode::All,
+      },
+      "set_steering_mode",
+    ),
+    (
+      RpcCommandKind::SetFollowUpMode {
+        mode: QueueMode::OneAtATime,
+      },
+      "set_follow_up_mode",
+    ),
+    (
+      RpcCommandKind::Compact {
+        custom_instructions: None,
+      },
+      "compact",
+    ),
+    (
+      RpcCommandKind::Bash {
+        command: "ls".into(),
+        exclude_from_context: false,
+      },
+      "bash",
+    ),
+    (
+      RpcCommandKind::ExportHtml { output_path: None },
+      "export_html",
+    ),
+    (
+      RpcCommandKind::SwitchSession {
+        session_path: "session.json".into(),
+      },
+      "switch_session",
+    ),
+    (
+      RpcCommandKind::Fork {
+        entry_id: "entry".into(),
+      },
+      "fork",
+    ),
+    (
+      RpcCommandKind::SetSessionName {
+        name: "name".into(),
+      },
+      "set_session_name",
+    ),
+  ];
+
+  for (kind, expected) in cases {
+    assert_eq!(kind.as_ref(), expected);
+    assert_eq!(kind.to_string(), expected);
+  }
+}
+
 // ============================================================================
 // RpcResponse deserialization
 // ============================================================================
