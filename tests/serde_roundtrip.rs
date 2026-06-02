@@ -403,6 +403,80 @@ fn command_kind_wire_names() {
   }
 }
 
+#[test]
+fn small_enum_wire_names() {
+  let cases = [
+    (StreamingBehavior::Steer.as_ref(), "steer"),
+    (StreamingBehavior::FollowUp.as_ref(), "followUp"),
+    (QueueMode::OneAtATime.as_ref(), "one-at-a-time"),
+    (SlashCommandSource::Extension.as_ref(), "extension"),
+    (NotifyType::Warning.as_ref(), "warning"),
+    (WidgetPlacement::AboveEditor.as_ref(), "aboveEditor"),
+    (ThinkingLevel::XHigh.as_ref(), "xhigh"),
+    (CompactionReason::Threshold.as_ref(), "threshold"),
+    (TextSignaturePhase::FinalAnswer.as_ref(), "final_answer"),
+    (StopReason::ToolUse.as_ref(), "toolUse"),
+    (
+      DeserializationErrorContext::RpcExtensionUIRequest.as_ref(),
+      "rpc_extension_ui_request",
+    ),
+  ];
+
+  for (actual, expected) in cases {
+    assert_eq!(actual, expected);
+  }
+
+  assert_eq!(QueueMode::OneAtATime.to_string(), "one-at-a-time");
+  assert_eq!(ThinkingLevel::XHigh.to_string(), "xhigh");
+}
+
+#[test]
+fn tagged_enum_wire_names() {
+  let content = ContentBlock::ToolCall {
+    id: "id".into(),
+    name: "tool".into(),
+    arguments: Default::default(),
+    thought_signature: None,
+  };
+  assert_eq!(content.as_ref(), "toolCall");
+  assert_eq!(content.to_string(), "toolCall");
+
+  let assistant_event = AssistantMessageEvent::ToolcallStart {
+    content_index: 0.0,
+    partial: Box::new(serde_json::json!({})),
+  };
+  assert_eq!(assistant_event.as_ref(), "toolcall_start");
+
+  let agent_message = AgentMessage::Custom {
+    custom_type: "x".into(),
+    content: serde_json::json!(null),
+    display: false,
+    details: None,
+    timestamp: 0.0,
+  };
+  assert_eq!(agent_message.as_ref(), "custom");
+
+  let agent_event = AgentEvent::AutoRetryStart {
+    attempt: 1.0,
+    max_attempts: 3.0,
+    delay_ms: 100.0,
+    error_message: "err".into(),
+  };
+  assert_eq!(agent_event.as_ref(), "auto_retry_start");
+
+  let session_event = SessionEvent::ProcessExited {
+    code: Some(0),
+    stderr: String::new(),
+  };
+  assert_eq!(session_event.as_ref(), "session_process_exited");
+
+  let extension_request = RpcExtensionUIRequestKind::SetEditorText {
+    text: "hello".into(),
+  };
+  assert_eq!(extension_request.as_ref(), "set_editor_text");
+  assert_eq!(extension_request.to_string(), "set_editor_text");
+}
+
 // ============================================================================
 // RpcResponse deserialization
 // ============================================================================
@@ -413,6 +487,23 @@ fn response_success_no_data() {
   let resp: RpcResponse = serde_json::from_str(json).unwrap();
   assert_eq!(resp.id, Some("1".into()));
   assert_eq!(resp.kind, RpcResponseKind::Prompt);
+}
+
+#[test]
+fn response_kind_command_name() {
+  assert_eq!(RpcResponseKind::Prompt.command_name(), "prompt");
+  assert_eq!(
+    RpcResponseKind::CycleThinkingLevel(None).command_name(),
+    "cycle_thinking_level"
+  );
+  assert_eq!(
+    RpcResponseKind::Error {
+      command: "custom_command".into(),
+      error: "err".into(),
+    }
+    .command_name(),
+    "custom_command"
+  );
 }
 
 #[test]

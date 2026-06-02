@@ -4,6 +4,7 @@
 
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
+use strum::{AsRefStr, Display};
 
 // ============================================================================
 // Content blocks
@@ -17,11 +18,11 @@ pub struct TextSignatureV1 {
   pub phase: Option<TextSignaturePhase>,
 }
 
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, AsRefStr, Display)]
+#[serde(rename_all = "snake_case")]
+#[strum(serialize_all = "snake_case")]
 pub enum TextSignaturePhase {
-  #[serde(rename = "commentary")]
   Commentary,
-  #[serde(rename = "final_answer")]
   FinalAnswer,
 }
 
@@ -34,10 +35,10 @@ pub enum TextSignature {
 }
 
 /// Union of TextContent | ThinkingContent | ImageContent | ToolCall.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
-#[serde(tag = "type")]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, AsRefStr, Display)]
+#[serde(tag = "type", rename_all = "camelCase")]
+#[strum(serialize_all = "camelCase")]
 pub enum ContentBlock {
-  #[serde(rename = "text")]
   Text {
     text: String,
     #[serde(
@@ -47,7 +48,6 @@ pub enum ContentBlock {
     )]
     text_signature: Option<TextSignature>,
   },
-  #[serde(rename = "thinking")]
   Thinking {
     thinking: String,
     #[serde(
@@ -59,13 +59,11 @@ pub enum ContentBlock {
     #[serde(default, skip_serializing_if = "Option::is_none")]
     redacted: Option<bool>,
   },
-  #[serde(rename = "image")]
   Image {
     data: String,
     #[serde(rename = "mimeType")]
     mime_type: String,
   },
-  #[serde(rename = "toolCall")]
   ToolCall {
     id: String,
     name: String,
@@ -111,17 +109,14 @@ pub struct UsageCost {
 // StopReason
 // ============================================================================
 
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, AsRefStr, Display)]
+#[serde(rename_all = "camelCase")]
+#[strum(serialize_all = "camelCase")]
 pub enum StopReason {
-  #[serde(rename = "stop")]
   Stop,
-  #[serde(rename = "length")]
   Length,
-  #[serde(rename = "toolUse")]
   ToolUse,
-  #[serde(rename = "error")]
   Error,
-  #[serde(rename = "aborted")]
   Aborted,
 }
 
@@ -220,65 +215,58 @@ pub struct AssistantMessageDiagnostic {
 // AssistantMessageEvent
 // ============================================================================
 
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
-#[serde(tag = "type")]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, AsRefStr, Display)]
+#[serde(tag = "type", rename_all = "snake_case")]
+#[strum(serialize_all = "snake_case")]
 pub enum AssistantMessageEvent {
-  #[serde(rename = "start")]
-  Start { partial: Box<serde_json::Value> },
-  #[serde(rename = "text_start")]
+  Start {
+    partial: Box<serde_json::Value>,
+  },
   TextStart {
     #[serde(rename = "contentIndex")]
     content_index: f64,
     partial: Box<serde_json::Value>,
   },
-  #[serde(rename = "text_delta")]
   TextDelta {
     #[serde(rename = "contentIndex")]
     content_index: f64,
     delta: String,
     partial: Box<serde_json::Value>,
   },
-  #[serde(rename = "text_end")]
   TextEnd {
     #[serde(rename = "contentIndex")]
     content_index: f64,
     content: String,
     partial: Box<serde_json::Value>,
   },
-  #[serde(rename = "thinking_start")]
   ThinkingStart {
     #[serde(rename = "contentIndex")]
     content_index: f64,
     partial: Box<serde_json::Value>,
   },
-  #[serde(rename = "thinking_delta")]
   ThinkingDelta {
     #[serde(rename = "contentIndex")]
     content_index: f64,
     delta: String,
     partial: Box<serde_json::Value>,
   },
-  #[serde(rename = "thinking_end")]
   ThinkingEnd {
     #[serde(rename = "contentIndex")]
     content_index: f64,
     content: String,
     partial: Box<serde_json::Value>,
   },
-  #[serde(rename = "toolcall_start")]
   ToolcallStart {
     #[serde(rename = "contentIndex")]
     content_index: f64,
     partial: Box<serde_json::Value>,
   },
-  #[serde(rename = "toolcall_delta")]
   ToolcallDelta {
     #[serde(rename = "contentIndex")]
     content_index: f64,
     delta: String,
     partial: Box<serde_json::Value>,
   },
-  #[serde(rename = "toolcall_end")]
   ToolcallEnd {
     #[serde(rename = "contentIndex")]
     content_index: f64,
@@ -286,12 +274,10 @@ pub enum AssistantMessageEvent {
     tool_call: ContentBlock, // always the ToolCall variant
     partial: Box<serde_json::Value>,
   },
-  #[serde(rename = "done")]
   Done {
     reason: StopReason,
     message: Box<serde_json::Value>,
   },
-  #[serde(rename = "error")]
   Error {
     reason: StopReason,
     error: Box<serde_json::Value>,

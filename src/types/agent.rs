@@ -6,6 +6,7 @@
 //! `packages/coding-agent/src/core/agent-session.ts` (`AgentSessionEvent`).
 
 use serde::{Deserialize, Serialize};
+use strum::{AsRefStr, Display};
 
 use super::ai::*;
 use super::compaction::CompactionResult;
@@ -14,19 +15,15 @@ use super::compaction::CompactionResult;
 // ThinkingLevel
 // ============================================================================
 
-#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize, AsRefStr, Display)]
+#[serde(rename_all = "lowercase")]
+#[strum(serialize_all = "lowercase")]
 pub enum ThinkingLevel {
-  #[serde(rename = "off")]
   Off,
-  #[serde(rename = "minimal")]
   Minimal,
-  #[serde(rename = "low")]
   Low,
-  #[serde(rename = "medium")]
   Medium,
-  #[serde(rename = "high")]
   High,
-  #[serde(rename = "xhigh")]
   XHigh,
 }
 
@@ -40,16 +37,15 @@ pub enum ThinkingLevel {
 /// `Message = UserMessage | AssistantMessage | ToolResultMessage` is defined in
 /// `packages/ai/src/types.ts`, and the custom message types are added by
 /// `packages/coding-agent/src/core/messages.ts` via declaration merging.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
-#[serde(tag = "role")]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, AsRefStr, Display)]
+#[serde(tag = "role", rename_all = "camelCase")]
+#[strum(serialize_all = "camelCase")]
 pub enum AgentMessage {
   // -- From packages/ai/src/types.ts (Message = UserMessage | AssistantMessage | ToolResultMessage) --
-  #[serde(rename = "user")]
   User {
     content: UserContent,
     timestamp: f64,
   },
-  #[serde(rename = "assistant")]
   Assistant {
     content: Vec<ContentBlock>,
     api: String,
@@ -80,7 +76,6 @@ pub enum AgentMessage {
     error_message: Option<String>,
     timestamp: f64,
   },
-  #[serde(rename = "toolResult")]
   ToolResult {
     #[serde(rename = "toolCallId")]
     tool_call_id: String,
@@ -95,7 +90,6 @@ pub enum AgentMessage {
   },
 
   // -- From packages/coding-agent/src/core/messages.ts (declaration-merged into CustomAgentMessages) --
-  #[serde(rename = "bashExecution")]
   BashExecution {
     command: String,
     output: String,
@@ -117,7 +111,6 @@ pub enum AgentMessage {
     )]
     exclude_from_context: Option<bool>,
   },
-  #[serde(rename = "custom")]
   Custom {
     #[serde(rename = "customType")]
     custom_type: String,
@@ -127,14 +120,12 @@ pub enum AgentMessage {
     details: Option<serde_json::Value>,
     timestamp: f64,
   },
-  #[serde(rename = "branchSummary")]
   BranchSummary {
     summary: String,
     #[serde(rename = "fromId")]
     from_id: String,
     timestamp: f64,
   },
-  #[serde(rename = "compactionSummary")]
   CompactionSummary {
     summary: String,
     #[serde(rename = "tokensBefore")]
@@ -153,21 +144,20 @@ pub enum AgentMessage {
 /// `AgentSessionEvent = AgentEvent | ...` in
 /// `packages/coding-agent/src/core/agent-session.ts` extends it with additional
 /// variants. We define the full union here.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
-#[serde(tag = "type")]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, AsRefStr, Display)]
+#[serde(tag = "type", rename_all = "snake_case")]
+#[strum(serialize_all = "snake_case")]
 pub enum AgentEvent {
   // -- From packages/agent/src/types.ts --
 
   // Agent lifecycle
-  #[serde(rename = "agent_start")]
   AgentStart,
-  #[serde(rename = "agent_end")]
-  AgentEnd { messages: Vec<AgentMessage> },
+  AgentEnd {
+    messages: Vec<AgentMessage>,
+  },
 
   // Turn lifecycle
-  #[serde(rename = "turn_start")]
   TurnStart,
-  #[serde(rename = "turn_end")]
   TurnEnd {
     message: AgentMessage,
     #[serde(rename = "toolResults")]
@@ -175,19 +165,19 @@ pub enum AgentEvent {
   },
 
   // Message lifecycle
-  #[serde(rename = "message_start")]
-  MessageStart { message: AgentMessage },
-  #[serde(rename = "message_update")]
+  MessageStart {
+    message: AgentMessage,
+  },
   MessageUpdate {
     message: AgentMessage,
     #[serde(rename = "assistantMessageEvent")]
     assistant_message_event: AssistantMessageEvent,
   },
-  #[serde(rename = "message_end")]
-  MessageEnd { message: AgentMessage },
+  MessageEnd {
+    message: AgentMessage,
+  },
 
   // Tool execution
-  #[serde(rename = "tool_execution_start")]
   ToolExecutionStart {
     #[serde(rename = "toolCallId")]
     tool_call_id: String,
@@ -195,7 +185,6 @@ pub enum AgentEvent {
     tool_name: String,
     args: serde_json::Value,
   },
-  #[serde(rename = "tool_execution_update")]
   ToolExecutionUpdate {
     #[serde(rename = "toolCallId")]
     tool_call_id: String,
@@ -205,7 +194,6 @@ pub enum AgentEvent {
     #[serde(rename = "partialResult")]
     partial_result: serde_json::Value,
   },
-  #[serde(rename = "tool_execution_end")]
   ToolExecutionEnd {
     #[serde(rename = "toolCallId")]
     tool_call_id: String,
@@ -217,22 +205,21 @@ pub enum AgentEvent {
   },
 
   // -- From packages/coding-agent/src/core/agent-session.ts (AgentSessionEvent extensions) --
-  #[serde(rename = "queue_update")]
   QueueUpdate {
     steering: Vec<String>,
     #[serde(rename = "followUp")]
     follow_up: Vec<String>,
   },
-  #[serde(rename = "compaction_start")]
-  CompactionStart { reason: CompactionReason },
-  #[serde(rename = "session_info_changed")]
+  CompactionStart {
+    reason: CompactionReason,
+  },
   SessionInfoChanged {
     #[serde(default, skip_serializing_if = "Option::is_none")]
     name: Option<String>,
   },
-  #[serde(rename = "thinking_level_changed")]
-  ThinkingLevelChanged { level: ThinkingLevel },
-  #[serde(rename = "compaction_end")]
+  ThinkingLevelChanged {
+    level: ThinkingLevel,
+  },
   CompactionEnd {
     reason: CompactionReason,
     #[serde(default, skip_serializing_if = "Option::is_none")]
@@ -247,7 +234,6 @@ pub enum AgentEvent {
     )]
     error_message: Option<String>,
   },
-  #[serde(rename = "auto_retry_start")]
   AutoRetryStart {
     attempt: f64,
     #[serde(rename = "maxAttempts")]
@@ -257,7 +243,6 @@ pub enum AgentEvent {
     #[serde(rename = "errorMessage")]
     error_message: String,
   },
-  #[serde(rename = "auto_retry_end")]
   AutoRetryEnd {
     success: bool,
     attempt: f64,
@@ -270,7 +255,6 @@ pub enum AgentEvent {
   },
 
   // -- From packages/coding-agent/src/modes/rpc/rpc-mode.ts (untyped in TS, only exists on the wire) --
-  #[serde(rename = "extension_error")]
   ExtensionError {
     #[serde(rename = "extensionPath")]
     extension_path: String,
@@ -279,12 +263,11 @@ pub enum AgentEvent {
   },
 }
 
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, AsRefStr, Display)]
+#[serde(rename_all = "lowercase")]
+#[strum(serialize_all = "lowercase")]
 pub enum CompactionReason {
-  #[serde(rename = "manual")]
   Manual,
-  #[serde(rename = "threshold")]
   Threshold,
-  #[serde(rename = "overflow")]
   Overflow,
 }

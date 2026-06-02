@@ -25,51 +25,49 @@ fn is_false(value: &bool) -> bool {
 /// How to queue a prompt when the agent is already streaming.
 ///
 /// See [`PiSession::prompt`](crate::session::PiSession::prompt) for details.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, AsRefStr, Display)]
+#[serde(rename_all = "camelCase")]
+#[strum(serialize_all = "camelCase")]
 pub enum StreamingBehavior {
   /// Interrupt after current tool call, skip remaining tools.
   /// Same as calling [`PiSession::steer`](crate::session::PiSession::steer).
-  #[serde(rename = "steer")]
   Steer,
   /// Queue until agent finishes all tool calls and steering messages.
   /// Same as calling [`PiSession::follow_up`](crate::session::PiSession::follow_up).
-  #[serde(rename = "followUp")]
   FollowUp,
 }
 
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, AsRefStr, Display)]
+#[serde(rename_all = "kebab-case")]
+#[strum(serialize_all = "kebab-case")]
 pub enum QueueMode {
-  #[serde(rename = "all")]
   All,
-  #[serde(rename = "one-at-a-time")]
   OneAtATime,
 }
 
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, AsRefStr, Display)]
+#[serde(rename_all = "lowercase")]
+#[strum(serialize_all = "lowercase")]
 pub enum SlashCommandSource {
-  #[serde(rename = "extension")]
   Extension,
-  #[serde(rename = "prompt")]
   Prompt,
-  #[serde(rename = "skill")]
   Skill,
 }
 
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, AsRefStr, Display)]
+#[serde(rename_all = "lowercase")]
+#[strum(serialize_all = "lowercase")]
 pub enum NotifyType {
-  #[serde(rename = "info")]
   Info,
-  #[serde(rename = "warning")]
   Warning,
-  #[serde(rename = "error")]
   Error,
 }
 
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, AsRefStr, Display)]
+#[serde(rename_all = "camelCase")]
+#[strum(serialize_all = "camelCase")]
 pub enum WidgetPlacement {
-  #[serde(rename = "aboveEditor")]
   AboveEditor,
-  #[serde(rename = "belowEditor")]
   BelowEditor,
 }
 
@@ -322,6 +320,44 @@ pub enum RpcResponseKind {
 
   // -- Error (any command can fail) --
   Error { command: String, error: String },
+}
+
+impl RpcResponseKind {
+  /// Returns the RPC wire command name associated with this response.
+  pub fn command_name(&self) -> &str {
+    match self {
+      RpcResponseKind::Prompt => "prompt",
+      RpcResponseKind::Steer => "steer",
+      RpcResponseKind::FollowUp => "follow_up",
+      RpcResponseKind::Abort => "abort",
+      RpcResponseKind::SetThinkingLevel => "set_thinking_level",
+      RpcResponseKind::SetSteeringMode => "set_steering_mode",
+      RpcResponseKind::SetFollowUpMode => "set_follow_up_mode",
+      RpcResponseKind::SetAutoCompaction => "set_auto_compaction",
+      RpcResponseKind::SetAutoRetry => "set_auto_retry",
+      RpcResponseKind::AbortRetry => "abort_retry",
+      RpcResponseKind::AbortBash => "abort_bash",
+      RpcResponseKind::SetSessionName => "set_session_name",
+      RpcResponseKind::NewSession(_) => "new_session",
+      RpcResponseKind::GetState(_) => "get_state",
+      RpcResponseKind::SetModel(_) => "set_model",
+      RpcResponseKind::CycleModel(_) => "cycle_model",
+      RpcResponseKind::GetAvailableModels(_) => "get_available_models",
+      RpcResponseKind::CycleThinkingLevel(_) => "cycle_thinking_level",
+      RpcResponseKind::Compact(_) => "compact",
+      RpcResponseKind::Bash(_) => "bash",
+      RpcResponseKind::GetSessionStats(_) => "get_session_stats",
+      RpcResponseKind::ExportHtml(_) => "export_html",
+      RpcResponseKind::SwitchSession(_) => "switch_session",
+      RpcResponseKind::Fork(_) => "fork",
+      RpcResponseKind::Clone(_) => "clone",
+      RpcResponseKind::GetForkMessages(_) => "get_fork_messages",
+      RpcResponseKind::GetLastAssistantText(_) => "get_last_assistant_text",
+      RpcResponseKind::GetMessages(_) => "get_messages",
+      RpcResponseKind::GetCommands(_) => "get_commands",
+      RpcResponseKind::Error { command, .. } => command,
+    }
+  }
 }
 
 // -- Response data structs --
@@ -644,14 +680,16 @@ pub enum RpcEvent {
 
 /// Events emitted by the Rust session wrapper itself, rather than by pi's
 /// RPC stdout protocol.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, AsRefStr, Display)]
 #[serde(tag = "type")]
 pub enum SessionEvent {
   /// The pi process stdout closed, indicating that the process exited.
   #[serde(rename = "session_process_exited")]
+  #[strum(serialize = "session_process_exited")]
   ProcessExited { code: Option<i32>, stderr: String },
   /// A line from pi's stdout could not be parsed as the expected RPC message.
   #[serde(rename = "session_deserialization_error")]
+  #[strum(serialize = "session_deserialization_error")]
   DeserializationError {
     context: DeserializationErrorContext,
     error: JsonErrorInfo,
@@ -660,8 +698,9 @@ pub enum SessionEvent {
   },
 }
 
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, AsRefStr, Display)]
 #[serde(rename_all = "snake_case")]
+#[strum(serialize_all = "snake_case")]
 pub enum DeserializationErrorContext {
   JsonLine,
   RpcResponse,
@@ -730,24 +769,22 @@ pub struct RpcExtensionUIRequest {
   pub kind: RpcExtensionUIRequestKind,
 }
 
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
-#[serde(tag = "method")]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, AsRefStr, Display)]
+#[serde(tag = "method", rename_all = "camelCase")]
+#[strum(serialize_all = "camelCase")]
 pub enum RpcExtensionUIRequestKind {
-  #[serde(rename = "select")]
   Select {
     title: String,
     options: Vec<String>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     timeout: Option<f64>,
   },
-  #[serde(rename = "confirm")]
   Confirm {
     title: String,
     message: String,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     timeout: Option<f64>,
   },
-  #[serde(rename = "input")]
   Input {
     title: String,
     #[serde(default, skip_serializing_if = "Option::is_none")]
@@ -755,13 +792,11 @@ pub enum RpcExtensionUIRequestKind {
     #[serde(default, skip_serializing_if = "Option::is_none")]
     timeout: Option<f64>,
   },
-  #[serde(rename = "editor")]
   Editor {
     title: String,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     prefill: Option<String>,
   },
-  #[serde(rename = "notify")]
   Notify {
     message: String,
     #[serde(
@@ -771,14 +806,12 @@ pub enum RpcExtensionUIRequestKind {
     )]
     notify_type: Option<NotifyType>,
   },
-  #[serde(rename = "setStatus")]
   SetStatus {
     #[serde(rename = "statusKey")]
     status_key: String,
     #[serde(rename = "statusText")]
     status_text: Option<String>,
   },
-  #[serde(rename = "setWidget")]
   SetWidget {
     #[serde(rename = "widgetKey")]
     widget_key: String,
@@ -791,10 +824,14 @@ pub enum RpcExtensionUIRequestKind {
     )]
     widget_placement: Option<WidgetPlacement>,
   },
-  #[serde(rename = "setTitle")]
-  SetTitle { title: String },
+  SetTitle {
+    title: String,
+  },
   #[serde(rename = "set_editor_text")]
-  SetEditorText { text: String },
+  #[strum(serialize = "set_editor_text")]
+  SetEditorText {
+    text: String,
+  },
 }
 
 // ============================================================================
