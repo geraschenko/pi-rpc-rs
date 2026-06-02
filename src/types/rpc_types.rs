@@ -89,11 +89,10 @@ pub struct RpcCommand {
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, AsRefStr, Display)]
-#[serde(tag = "type")]
+#[serde(tag = "type", rename_all = "snake_case")]
 #[strum(serialize_all = "snake_case")]
 pub enum RpcCommandKind {
   // -- Prompting --
-  #[serde(rename = "prompt")]
   Prompt {
     message: String,
     #[serde(default, skip_serializing_if = "Option::is_none")]
@@ -105,21 +104,17 @@ pub enum RpcCommandKind {
     )]
     streaming_behavior: Option<StreamingBehavior>,
   },
-  #[serde(rename = "steer")]
   Steer {
     message: String,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     images: Option<Vec<ContentBlock>>,
   },
-  #[serde(rename = "follow_up")]
   FollowUp {
     message: String,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     images: Option<Vec<ContentBlock>>,
   },
-  #[serde(rename = "abort")]
   Abort,
-  #[serde(rename = "new_session")]
   NewSession {
     #[serde(
       rename = "parentSession",
@@ -130,35 +125,32 @@ pub enum RpcCommandKind {
   },
 
   // -- State --
-  #[serde(rename = "get_state")]
   GetState,
 
   // -- Model --
-  #[serde(rename = "set_model")]
   SetModel {
     provider: String,
     #[serde(rename = "modelId")]
     model_id: String,
   },
-  #[serde(rename = "cycle_model")]
   CycleModel,
-  #[serde(rename = "get_available_models")]
   GetAvailableModels,
 
   // -- Thinking --
-  #[serde(rename = "set_thinking_level")]
-  SetThinkingLevel { level: ThinkingLevel },
-  #[serde(rename = "cycle_thinking_level")]
+  SetThinkingLevel {
+    level: ThinkingLevel,
+  },
   CycleThinkingLevel,
 
   // -- Queue modes --
-  #[serde(rename = "set_steering_mode")]
-  SetSteeringMode { mode: QueueMode },
-  #[serde(rename = "set_follow_up_mode")]
-  SetFollowUpMode { mode: QueueMode },
+  SetSteeringMode {
+    mode: QueueMode,
+  },
+  SetFollowUpMode {
+    mode: QueueMode,
+  },
 
   // -- Compaction --
-  #[serde(rename = "compact")]
   Compact {
     #[serde(
       rename = "customInstructions",
@@ -167,17 +159,17 @@ pub enum RpcCommandKind {
     )]
     custom_instructions: Option<String>,
   },
-  #[serde(rename = "set_auto_compaction")]
-  SetAutoCompaction { enabled: bool },
+  SetAutoCompaction {
+    enabled: bool,
+  },
 
   // -- Retry --
-  #[serde(rename = "set_auto_retry")]
-  SetAutoRetry { enabled: bool },
-  #[serde(rename = "abort_retry")]
+  SetAutoRetry {
+    enabled: bool,
+  },
   AbortRetry,
 
   // -- Bash --
-  #[serde(rename = "bash")]
   Bash {
     command: String,
     #[serde(
@@ -187,13 +179,10 @@ pub enum RpcCommandKind {
     )]
     exclude_from_context: bool,
   },
-  #[serde(rename = "abort_bash")]
   AbortBash,
 
   // -- Session --
-  #[serde(rename = "get_session_stats")]
   GetSessionStats,
-  #[serde(rename = "export_html")]
   ExportHtml {
     #[serde(
       rename = "outputPath",
@@ -202,31 +191,25 @@ pub enum RpcCommandKind {
     )]
     output_path: Option<String>,
   },
-  #[serde(rename = "switch_session")]
   SwitchSession {
     #[serde(rename = "sessionPath")]
     session_path: String,
   },
-  #[serde(rename = "fork")]
   Fork {
     #[serde(rename = "entryId")]
     entry_id: String,
   },
-  #[serde(rename = "clone")]
   Clone,
-  #[serde(rename = "get_fork_messages")]
   GetForkMessages,
-  #[serde(rename = "get_last_assistant_text")]
   GetLastAssistantText,
-  #[serde(rename = "set_session_name")]
-  SetSessionName { name: String },
+  SetSessionName {
+    name: String,
+  },
 
   // -- Messages --
-  #[serde(rename = "get_messages")]
   GetMessages,
 
   // -- Commands --
-  #[serde(rename = "get_commands")]
   GetCommands,
 }
 
