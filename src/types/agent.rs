@@ -38,7 +38,11 @@ pub enum ThinkingLevel {
 /// `packages/ai/src/types.ts`, and the custom message types are added by
 /// `packages/coding-agent/src/core/messages.ts` via declaration merging.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, AsRefStr, Display)]
-#[serde(tag = "role", rename_all = "camelCase")]
+#[serde(
+  tag = "role",
+  rename_all = "camelCase",
+  rename_all_fields = "camelCase"
+)]
 #[strum(serialize_all = "camelCase")]
 pub enum AgentMessage {
   // -- From packages/ai/src/types.ts (Message = UserMessage | AssistantMessage | ToolResultMessage) --
@@ -51,40 +55,24 @@ pub enum AgentMessage {
     api: String,
     provider: String,
     model: String,
-    #[serde(
-      rename = "responseModel",
-      default,
-      skip_serializing_if = "Option::is_none"
-    )]
+    #[serde(default, skip_serializing_if = "Option::is_none")]
     response_model: Option<String>,
-    #[serde(
-      rename = "responseId",
-      default,
-      skip_serializing_if = "Option::is_none"
-    )]
+    #[serde(default, skip_serializing_if = "Option::is_none")]
     response_id: Option<String>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     diagnostics: Option<Vec<AssistantMessageDiagnostic>>,
     usage: Usage,
-    #[serde(rename = "stopReason")]
     stop_reason: StopReason,
-    #[serde(
-      rename = "errorMessage",
-      default,
-      skip_serializing_if = "Option::is_none"
-    )]
+    #[serde(default, skip_serializing_if = "Option::is_none")]
     error_message: Option<String>,
     timestamp: f64,
   },
   ToolResult {
-    #[serde(rename = "toolCallId")]
     tool_call_id: String,
-    #[serde(rename = "toolName")]
     tool_name: String,
     content: Vec<ContentBlock>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     details: Option<serde_json::Value>,
-    #[serde(rename = "isError")]
     is_error: bool,
     timestamp: f64,
   },
@@ -93,26 +81,16 @@ pub enum AgentMessage {
   BashExecution {
     command: String,
     output: String,
-    #[serde(rename = "exitCode")]
     exit_code: Option<f64>,
     cancelled: bool,
     truncated: bool,
-    #[serde(
-      rename = "fullOutputPath",
-      default,
-      skip_serializing_if = "Option::is_none"
-    )]
+    #[serde(default, skip_serializing_if = "Option::is_none")]
     full_output_path: Option<String>,
     timestamp: f64,
-    #[serde(
-      rename = "excludeFromContext",
-      default,
-      skip_serializing_if = "Option::is_none"
-    )]
+    #[serde(default, skip_serializing_if = "Option::is_none")]
     exclude_from_context: Option<bool>,
   },
   Custom {
-    #[serde(rename = "customType")]
     custom_type: String,
     content: serde_json::Value, // string | (TextContent | ImageContent)[]
     display: bool,
@@ -122,13 +100,11 @@ pub enum AgentMessage {
   },
   BranchSummary {
     summary: String,
-    #[serde(rename = "fromId")]
     from_id: String,
     timestamp: f64,
   },
   CompactionSummary {
     summary: String,
-    #[serde(rename = "tokensBefore")]
     tokens_before: f64,
     timestamp: f64,
   },
@@ -145,7 +121,11 @@ pub enum AgentMessage {
 /// `packages/coding-agent/src/core/agent-session.ts` extends it with additional
 /// variants. We define the full union here.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, AsRefStr, Display)]
-#[serde(tag = "type", rename_all = "snake_case")]
+#[serde(
+  tag = "type",
+  rename_all = "snake_case",
+  rename_all_fields = "camelCase"
+)]
 #[strum(serialize_all = "snake_case")]
 pub enum AgentEvent {
   // -- From packages/agent/src/types.ts --
@@ -160,7 +140,6 @@ pub enum AgentEvent {
   TurnStart,
   TurnEnd {
     message: AgentMessage,
-    #[serde(rename = "toolResults")]
     tool_results: Vec<AgentMessage>, // always ToolResult variants
   },
 
@@ -170,7 +149,6 @@ pub enum AgentEvent {
   },
   MessageUpdate {
     message: AgentMessage,
-    #[serde(rename = "assistantMessageEvent")]
     assistant_message_event: AssistantMessageEvent,
   },
   MessageEnd {
@@ -179,35 +157,26 @@ pub enum AgentEvent {
 
   // Tool execution
   ToolExecutionStart {
-    #[serde(rename = "toolCallId")]
     tool_call_id: String,
-    #[serde(rename = "toolName")]
     tool_name: String,
     args: serde_json::Value,
   },
   ToolExecutionUpdate {
-    #[serde(rename = "toolCallId")]
     tool_call_id: String,
-    #[serde(rename = "toolName")]
     tool_name: String,
     args: serde_json::Value,
-    #[serde(rename = "partialResult")]
     partial_result: serde_json::Value,
   },
   ToolExecutionEnd {
-    #[serde(rename = "toolCallId")]
     tool_call_id: String,
-    #[serde(rename = "toolName")]
     tool_name: String,
     result: serde_json::Value,
-    #[serde(rename = "isError")]
     is_error: bool,
   },
 
   // -- From packages/coding-agent/src/core/agent-session.ts (AgentSessionEvent extensions) --
   QueueUpdate {
     steering: Vec<String>,
-    #[serde(rename = "followUp")]
     follow_up: Vec<String>,
   },
   CompactionStart {
@@ -225,38 +194,25 @@ pub enum AgentEvent {
     #[serde(default, skip_serializing_if = "Option::is_none")]
     result: Option<CompactionResult>,
     aborted: bool,
-    #[serde(rename = "willRetry")]
     will_retry: bool,
-    #[serde(
-      rename = "errorMessage",
-      default,
-      skip_serializing_if = "Option::is_none"
-    )]
+    #[serde(default, skip_serializing_if = "Option::is_none")]
     error_message: Option<String>,
   },
   AutoRetryStart {
     attempt: f64,
-    #[serde(rename = "maxAttempts")]
     max_attempts: f64,
-    #[serde(rename = "delayMs")]
     delay_ms: f64,
-    #[serde(rename = "errorMessage")]
     error_message: String,
   },
   AutoRetryEnd {
     success: bool,
     attempt: f64,
-    #[serde(
-      rename = "finalError",
-      default,
-      skip_serializing_if = "Option::is_none"
-    )]
+    #[serde(default, skip_serializing_if = "Option::is_none")]
     final_error: Option<String>,
   },
 
   // -- From packages/coding-agent/src/modes/rpc/rpc-mode.ts (untyped in TS, only exists on the wire) --
   ExtensionError {
-    #[serde(rename = "extensionPath")]
     extension_path: String,
     event: String,
     error: String,

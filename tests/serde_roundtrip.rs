@@ -416,6 +416,8 @@ fn small_enum_wire_names() {
     (CompactionReason::Threshold.as_ref(), "threshold"),
     (TextSignaturePhase::FinalAnswer.as_ref(), "final_answer"),
     (StopReason::ToolUse.as_ref(), "toolUse"),
+    (SourceScope::Temporary.as_ref(), "temporary"),
+    (SourceOrigin::TopLevel.as_ref(), "top-level"),
     (
       DeserializationErrorContext::RpcExtensionUIRequest.as_ref(),
       "rpc_extension_ui_request",

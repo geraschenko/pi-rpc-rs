@@ -1,31 +1,32 @@
 //! Types from `packages/coding-agent/src/core/source-info.ts`.
 
 use serde::{Deserialize, Serialize};
+use strum::{AsRefStr, Display};
 
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, AsRefStr, Display)]
+#[serde(rename_all = "lowercase")]
+#[strum(serialize_all = "lowercase")]
 pub enum SourceScope {
-  #[serde(rename = "user")]
   User,
-  #[serde(rename = "project")]
   Project,
-  #[serde(rename = "temporary")]
   Temporary,
 }
 
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, AsRefStr, Display)]
+#[serde(rename_all = "kebab-case")]
+#[strum(serialize_all = "kebab-case")]
 pub enum SourceOrigin {
-  #[serde(rename = "package")]
   Package,
-  #[serde(rename = "top-level")]
   TopLevel,
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct SourceInfo {
   pub path: String,
   pub source: String,
   pub scope: SourceScope,
   pub origin: SourceOrigin,
-  #[serde(rename = "baseDir", default, skip_serializing_if = "Option::is_none")]
+  #[serde(default, skip_serializing_if = "Option::is_none")]
   pub base_dir: Option<String>,
 }

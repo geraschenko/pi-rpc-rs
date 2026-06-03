@@ -87,7 +87,11 @@ pub struct RpcCommand {
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, AsRefStr, Display)]
-#[serde(tag = "type", rename_all = "snake_case")]
+#[serde(
+  tag = "type",
+  rename_all = "snake_case",
+  rename_all_fields = "camelCase"
+)]
 #[strum(serialize_all = "snake_case")]
 pub enum RpcCommandKind {
   // -- Prompting --
@@ -95,11 +99,7 @@ pub enum RpcCommandKind {
     message: String,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     images: Option<Vec<ContentBlock>>, // Image variants only
-    #[serde(
-      rename = "streamingBehavior",
-      default,
-      skip_serializing_if = "Option::is_none"
-    )]
+    #[serde(default, skip_serializing_if = "Option::is_none")]
     streaming_behavior: Option<StreamingBehavior>,
   },
   Steer {
@@ -114,11 +114,7 @@ pub enum RpcCommandKind {
   },
   Abort,
   NewSession {
-    #[serde(
-      rename = "parentSession",
-      default,
-      skip_serializing_if = "Option::is_none"
-    )]
+    #[serde(default, skip_serializing_if = "Option::is_none")]
     parent_session: Option<String>,
   },
 
@@ -128,7 +124,6 @@ pub enum RpcCommandKind {
   // -- Model --
   SetModel {
     provider: String,
-    #[serde(rename = "modelId")]
     model_id: String,
   },
   CycleModel,
@@ -150,11 +145,7 @@ pub enum RpcCommandKind {
 
   // -- Compaction --
   Compact {
-    #[serde(
-      rename = "customInstructions",
-      default,
-      skip_serializing_if = "Option::is_none"
-    )]
+    #[serde(default, skip_serializing_if = "Option::is_none")]
     custom_instructions: Option<String>,
   },
   SetAutoCompaction {
@@ -170,11 +161,7 @@ pub enum RpcCommandKind {
   // -- Bash --
   Bash {
     command: String,
-    #[serde(
-      rename = "excludeFromContext",
-      default,
-      skip_serializing_if = "is_false"
-    )]
+    #[serde(default, skip_serializing_if = "is_false")]
     exclude_from_context: bool,
   },
   AbortBash,
@@ -182,19 +169,13 @@ pub enum RpcCommandKind {
   // -- Session --
   GetSessionStats,
   ExportHtml {
-    #[serde(
-      rename = "outputPath",
-      default,
-      skip_serializing_if = "Option::is_none"
-    )]
+    #[serde(default, skip_serializing_if = "Option::is_none")]
     output_path: Option<String>,
   },
   SwitchSession {
-    #[serde(rename = "sessionPath")]
     session_path: String,
   },
   Fork {
-    #[serde(rename = "entryId")]
     entry_id: String,
   },
   Clone,
@@ -217,12 +198,12 @@ pub enum RpcCommandKind {
 
 /// A slash command available for invocation.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct RpcSlashCommand {
   pub name: String,
   #[serde(default, skip_serializing_if = "Option::is_none")]
   pub description: Option<String>,
   pub source: SlashCommandSource,
-  #[serde(rename = "sourceInfo")]
   pub source_info: SourceInfo,
 }
 
@@ -232,38 +213,22 @@ pub struct RpcSlashCommand {
 
 /// Current session state.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct RpcSessionState {
   #[serde(default, skip_serializing_if = "Option::is_none")]
   pub model: Option<Model>,
-  #[serde(rename = "thinkingLevel")]
   pub thinking_level: ThinkingLevel,
-  #[serde(rename = "isStreaming")]
   pub is_streaming: bool,
-  #[serde(rename = "isCompacting")]
   pub is_compacting: bool,
-  #[serde(rename = "steeringMode")]
   pub steering_mode: QueueMode,
-  #[serde(rename = "followUpMode")]
   pub follow_up_mode: QueueMode,
-  #[serde(
-    rename = "sessionFile",
-    default,
-    skip_serializing_if = "Option::is_none"
-  )]
+  #[serde(default, skip_serializing_if = "Option::is_none")]
   pub session_file: Option<String>,
-  #[serde(rename = "sessionId")]
   pub session_id: String,
-  #[serde(
-    rename = "sessionName",
-    default,
-    skip_serializing_if = "Option::is_none"
-  )]
+  #[serde(default, skip_serializing_if = "Option::is_none")]
   pub session_name: Option<String>,
-  #[serde(rename = "autoCompactionEnabled")]
   pub auto_compaction_enabled: bool,
-  #[serde(rename = "messageCount")]
   pub message_count: f64,
-  #[serde(rename = "pendingMessageCount")]
   pub pending_message_count: f64,
 }
 
@@ -368,11 +333,10 @@ pub struct NewSessionData {
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct CycleModelData {
   pub model: Model,
-  #[serde(rename = "thinkingLevel")]
   pub thinking_level: ThinkingLevel,
-  #[serde(rename = "isScoped")]
   pub is_scoped: bool,
 }
 
@@ -413,8 +377,8 @@ pub struct GetForkMessagesData {
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct ForkableMessage {
-  #[serde(rename = "entryId")]
   pub entry_id: String,
   pub text: String,
 }
@@ -583,62 +547,44 @@ impl Serialize for RpcResponse {
       map.serialize_entry("id", id)?;
     }
 
+    let command = self.kind.command_name();
+
     match &self.kind {
       // No-data success responses
-      RpcResponseKind::Prompt => serialize_success(&mut map, "prompt", None::<&()>),
-      RpcResponseKind::Steer => serialize_success(&mut map, "steer", None::<&()>),
-      RpcResponseKind::FollowUp => serialize_success(&mut map, "follow_up", None::<&()>),
-      RpcResponseKind::Abort => serialize_success(&mut map, "abort", None::<&()>),
-      RpcResponseKind::SetThinkingLevel => {
-        serialize_success(&mut map, "set_thinking_level", None::<&()>)
-      }
-      RpcResponseKind::SetSteeringMode => {
-        serialize_success(&mut map, "set_steering_mode", None::<&()>)
-      }
-      RpcResponseKind::SetFollowUpMode => {
-        serialize_success(&mut map, "set_follow_up_mode", None::<&()>)
-      }
-      RpcResponseKind::SetAutoCompaction => {
-        serialize_success(&mut map, "set_auto_compaction", None::<&()>)
-      }
-      RpcResponseKind::SetAutoRetry => serialize_success(&mut map, "set_auto_retry", None::<&()>),
-      RpcResponseKind::AbortRetry => serialize_success(&mut map, "abort_retry", None::<&()>),
-      RpcResponseKind::AbortBash => serialize_success(&mut map, "abort_bash", None::<&()>),
-      RpcResponseKind::SetSessionName => {
-        serialize_success(&mut map, "set_session_name", None::<&()>)
-      }
+      RpcResponseKind::Prompt => serialize_success(&mut map, command, None::<&()>),
+      RpcResponseKind::Steer => serialize_success(&mut map, command, None::<&()>),
+      RpcResponseKind::FollowUp => serialize_success(&mut map, command, None::<&()>),
+      RpcResponseKind::Abort => serialize_success(&mut map, command, None::<&()>),
+      RpcResponseKind::SetThinkingLevel => serialize_success(&mut map, command, None::<&()>),
+      RpcResponseKind::SetSteeringMode => serialize_success(&mut map, command, None::<&()>),
+      RpcResponseKind::SetFollowUpMode => serialize_success(&mut map, command, None::<&()>),
+      RpcResponseKind::SetAutoCompaction => serialize_success(&mut map, command, None::<&()>),
+      RpcResponseKind::SetAutoRetry => serialize_success(&mut map, command, None::<&()>),
+      RpcResponseKind::AbortRetry => serialize_success(&mut map, command, None::<&()>),
+      RpcResponseKind::AbortBash => serialize_success(&mut map, command, None::<&()>),
+      RpcResponseKind::SetSessionName => serialize_success(&mut map, command, None::<&()>),
 
       // Success responses with data
-      RpcResponseKind::NewSession(d) => serialize_success(&mut map, "new_session", Some(d)),
-      RpcResponseKind::GetState(d) => serialize_success(&mut map, "get_state", Some(d)),
-      RpcResponseKind::SetModel(d) => serialize_success(&mut map, "set_model", Some(d)),
-      RpcResponseKind::CycleModel(d) => serialize_success(&mut map, "cycle_model", Some(d)),
-      RpcResponseKind::GetAvailableModels(d) => {
-        serialize_success(&mut map, "get_available_models", Some(d))
-      }
-      RpcResponseKind::CycleThinkingLevel(d) => {
-        serialize_success(&mut map, "cycle_thinking_level", Some(d))
-      }
-      RpcResponseKind::Compact(d) => serialize_success(&mut map, "compact", Some(d)),
-      RpcResponseKind::Bash(d) => serialize_success(&mut map, "bash", Some(d)),
-      RpcResponseKind::GetSessionStats(d) => {
-        serialize_success(&mut map, "get_session_stats", Some(d))
-      }
-      RpcResponseKind::ExportHtml(d) => serialize_success(&mut map, "export_html", Some(d)),
-      RpcResponseKind::SwitchSession(d) => serialize_success(&mut map, "switch_session", Some(d)),
-      RpcResponseKind::Fork(d) => serialize_success(&mut map, "fork", Some(d)),
-      RpcResponseKind::Clone(d) => serialize_success(&mut map, "clone", Some(d)),
-      RpcResponseKind::GetForkMessages(d) => {
-        serialize_success(&mut map, "get_fork_messages", Some(d))
-      }
-      RpcResponseKind::GetLastAssistantText(d) => {
-        serialize_success(&mut map, "get_last_assistant_text", Some(d))
-      }
-      RpcResponseKind::GetMessages(d) => serialize_success(&mut map, "get_messages", Some(d)),
-      RpcResponseKind::GetCommands(d) => serialize_success(&mut map, "get_commands", Some(d)),
+      RpcResponseKind::NewSession(d) => serialize_success(&mut map, command, Some(d)),
+      RpcResponseKind::GetState(d) => serialize_success(&mut map, command, Some(d)),
+      RpcResponseKind::SetModel(d) => serialize_success(&mut map, command, Some(d)),
+      RpcResponseKind::CycleModel(d) => serialize_success(&mut map, command, Some(d)),
+      RpcResponseKind::GetAvailableModels(d) => serialize_success(&mut map, command, Some(d)),
+      RpcResponseKind::CycleThinkingLevel(d) => serialize_success(&mut map, command, Some(d)),
+      RpcResponseKind::Compact(d) => serialize_success(&mut map, command, Some(d)),
+      RpcResponseKind::Bash(d) => serialize_success(&mut map, command, Some(d)),
+      RpcResponseKind::GetSessionStats(d) => serialize_success(&mut map, command, Some(d)),
+      RpcResponseKind::ExportHtml(d) => serialize_success(&mut map, command, Some(d)),
+      RpcResponseKind::SwitchSession(d) => serialize_success(&mut map, command, Some(d)),
+      RpcResponseKind::Fork(d) => serialize_success(&mut map, command, Some(d)),
+      RpcResponseKind::Clone(d) => serialize_success(&mut map, command, Some(d)),
+      RpcResponseKind::GetForkMessages(d) => serialize_success(&mut map, command, Some(d)),
+      RpcResponseKind::GetLastAssistantText(d) => serialize_success(&mut map, command, Some(d)),
+      RpcResponseKind::GetMessages(d) => serialize_success(&mut map, command, Some(d)),
+      RpcResponseKind::GetCommands(d) => serialize_success(&mut map, command, Some(d)),
 
       // Error
-      RpcResponseKind::Error { command, error } => {
+      RpcResponseKind::Error { error, .. } => {
         map.serialize_entry("command", command)?;
         map.serialize_entry("success", &false)?;
         map.serialize_entry("error", error)?;
@@ -770,7 +716,11 @@ pub struct RpcExtensionUIRequest {
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, AsRefStr, Display)]
-#[serde(tag = "method", rename_all = "camelCase")]
+#[serde(
+  tag = "method",
+  rename_all = "camelCase",
+  rename_all_fields = "camelCase"
+)]
 #[strum(serialize_all = "camelCase")]
 pub enum RpcExtensionUIRequestKind {
   Select {
@@ -799,29 +749,17 @@ pub enum RpcExtensionUIRequestKind {
   },
   Notify {
     message: String,
-    #[serde(
-      rename = "notifyType",
-      default,
-      skip_serializing_if = "Option::is_none"
-    )]
+    #[serde(default, skip_serializing_if = "Option::is_none")]
     notify_type: Option<NotifyType>,
   },
   SetStatus {
-    #[serde(rename = "statusKey")]
     status_key: String,
-    #[serde(rename = "statusText")]
     status_text: Option<String>,
   },
   SetWidget {
-    #[serde(rename = "widgetKey")]
     widget_key: String,
-    #[serde(rename = "widgetLines")]
     widget_lines: Option<Vec<String>>,
-    #[serde(
-      rename = "widgetPlacement",
-      default,
-      skip_serializing_if = "Option::is_none"
-    )]
+    #[serde(default, skip_serializing_if = "Option::is_none")]
     widget_placement: Option<WidgetPlacement>,
   },
   SetTitle {

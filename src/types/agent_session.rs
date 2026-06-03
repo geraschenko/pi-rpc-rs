@@ -8,46 +8,35 @@ use serde::{Deserialize, Serialize};
 
 /// Session statistics (token usage and cost).
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct SessionStats {
-  #[serde(rename = "sessionFile")]
   pub session_file: Option<String>,
-  #[serde(rename = "sessionId")]
   pub session_id: String,
-  #[serde(rename = "userMessages")]
   pub user_messages: f64,
-  #[serde(rename = "assistantMessages")]
   pub assistant_messages: f64,
-  #[serde(rename = "toolCalls")]
   pub tool_calls: f64,
-  #[serde(rename = "toolResults")]
   pub tool_results: f64,
-  #[serde(rename = "totalMessages")]
   pub total_messages: f64,
   pub tokens: SessionTokens,
   pub cost: f64,
-  #[serde(
-    rename = "contextUsage",
-    default,
-    skip_serializing_if = "Option::is_none"
-  )]
+  #[serde(default, skip_serializing_if = "Option::is_none")]
   pub context_usage: Option<ContextUsage>,
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct ContextUsage {
   pub tokens: Option<f64>,
-  #[serde(rename = "contextWindow")]
   pub context_window: f64,
   pub percent: Option<f64>,
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct SessionTokens {
   pub input: f64,
   pub output: f64,
-  #[serde(rename = "cacheRead")]
   pub cache_read: f64,
-  #[serde(rename = "cacheWrite")]
   pub cache_write: f64,
   pub total: f64,
 }

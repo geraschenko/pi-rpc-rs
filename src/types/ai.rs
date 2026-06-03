@@ -36,43 +36,34 @@ pub enum TextSignature {
 
 /// Union of TextContent | ThinkingContent | ImageContent | ToolCall.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, AsRefStr, Display)]
-#[serde(tag = "type", rename_all = "camelCase")]
+#[serde(
+  tag = "type",
+  rename_all = "camelCase",
+  rename_all_fields = "camelCase"
+)]
 #[strum(serialize_all = "camelCase")]
 pub enum ContentBlock {
   Text {
     text: String,
-    #[serde(
-      rename = "textSignature",
-      default,
-      skip_serializing_if = "Option::is_none"
-    )]
+    #[serde(default, skip_serializing_if = "Option::is_none")]
     text_signature: Option<TextSignature>,
   },
   Thinking {
     thinking: String,
-    #[serde(
-      rename = "thinkingSignature",
-      default,
-      skip_serializing_if = "Option::is_none"
-    )]
+    #[serde(default, skip_serializing_if = "Option::is_none")]
     thinking_signature: Option<String>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     redacted: Option<bool>,
   },
   Image {
     data: String,
-    #[serde(rename = "mimeType")]
     mime_type: String,
   },
   ToolCall {
     id: String,
     name: String,
     arguments: HashMap<String, serde_json::Value>,
-    #[serde(
-      rename = "thoughtSignature",
-      default,
-      skip_serializing_if = "Option::is_none"
-    )]
+    #[serde(default, skip_serializing_if = "Option::is_none")]
     thought_signature: Option<String>,
   },
 }
@@ -82,25 +73,22 @@ pub enum ContentBlock {
 // ============================================================================
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct Usage {
   pub input: f64,
   pub output: f64,
-  #[serde(rename = "cacheRead")]
   pub cache_read: f64,
-  #[serde(rename = "cacheWrite")]
   pub cache_write: f64,
-  #[serde(rename = "totalTokens")]
   pub total_tokens: f64,
   pub cost: UsageCost,
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct UsageCost {
   pub input: f64,
   pub output: f64,
-  #[serde(rename = "cacheRead")]
   pub cache_read: f64,
-  #[serde(rename = "cacheWrite")]
   pub cache_write: f64,
   pub total: f64,
 }
@@ -142,25 +130,19 @@ pub enum UserContent {
 /// The `compat` field stores provider/API-specific compatibility flags. Its
 /// TypeScript shape is conditional on `api`, so Rust preserves it as JSON.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct Model {
   pub id: String,
   pub name: String,
   pub api: String,
   pub provider: String,
-  #[serde(rename = "baseUrl")]
   pub base_url: String,
   pub reasoning: bool,
-  #[serde(
-    rename = "thinkingLevelMap",
-    default,
-    skip_serializing_if = "Option::is_none"
-  )]
+  #[serde(default, skip_serializing_if = "Option::is_none")]
   pub thinking_level_map: Option<HashMap<crate::types::ThinkingLevel, Option<String>>>,
   pub input: Vec<String>,
   pub cost: ModelCost,
-  #[serde(rename = "contextWindow")]
   pub context_window: f64,
-  #[serde(rename = "maxTokens")]
   pub max_tokens: f64,
   #[serde(default, skip_serializing_if = "Option::is_none")]
   pub headers: Option<HashMap<String, String>>,
@@ -169,12 +151,11 @@ pub struct Model {
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct ModelCost {
   pub input: f64,
   pub output: f64,
-  #[serde(rename = "cacheRead")]
   pub cache_read: f64,
-  #[serde(rename = "cacheWrite")]
   pub cache_write: f64,
 }
 
@@ -216,61 +197,55 @@ pub struct AssistantMessageDiagnostic {
 // ============================================================================
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, AsRefStr, Display)]
-#[serde(tag = "type", rename_all = "snake_case")]
+#[serde(
+  tag = "type",
+  rename_all = "snake_case",
+  rename_all_fields = "camelCase"
+)]
 #[strum(serialize_all = "snake_case")]
 pub enum AssistantMessageEvent {
   Start {
     partial: Box<serde_json::Value>,
   },
   TextStart {
-    #[serde(rename = "contentIndex")]
     content_index: f64,
     partial: Box<serde_json::Value>,
   },
   TextDelta {
-    #[serde(rename = "contentIndex")]
     content_index: f64,
     delta: String,
     partial: Box<serde_json::Value>,
   },
   TextEnd {
-    #[serde(rename = "contentIndex")]
     content_index: f64,
     content: String,
     partial: Box<serde_json::Value>,
   },
   ThinkingStart {
-    #[serde(rename = "contentIndex")]
     content_index: f64,
     partial: Box<serde_json::Value>,
   },
   ThinkingDelta {
-    #[serde(rename = "contentIndex")]
     content_index: f64,
     delta: String,
     partial: Box<serde_json::Value>,
   },
   ThinkingEnd {
-    #[serde(rename = "contentIndex")]
     content_index: f64,
     content: String,
     partial: Box<serde_json::Value>,
   },
   ToolcallStart {
-    #[serde(rename = "contentIndex")]
     content_index: f64,
     partial: Box<serde_json::Value>,
   },
   ToolcallDelta {
-    #[serde(rename = "contentIndex")]
     content_index: f64,
     delta: String,
     partial: Box<serde_json::Value>,
   },
   ToolcallEnd {
-    #[serde(rename = "contentIndex")]
     content_index: f64,
-    #[serde(rename = "toolCall")]
     tool_call: ContentBlock, // always the ToolCall variant
     partial: Box<serde_json::Value>,
   },
