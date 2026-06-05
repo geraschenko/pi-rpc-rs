@@ -509,6 +509,53 @@ fn response_kind_command_name() {
 }
 
 #[test]
+fn response_kind_app_level_serde() {
+  let no_data = RpcResponseKind::Prompt;
+  let json = serde_json::to_value(&no_data).unwrap();
+  assert_eq!(json, serde_json::json!({ "kind": "prompt" }));
+  assert_eq!(
+    serde_json::from_value::<RpcResponseKind>(json).unwrap(),
+    no_data
+  );
+
+  let with_data = RpcResponseKind::CycleThinkingLevel(Some(CycleThinkingLevelData {
+    level: ThinkingLevel::High,
+  }));
+  let json = serde_json::to_value(&with_data).unwrap();
+  assert_eq!(
+    json,
+    serde_json::json!({
+      "kind": "cycle_thinking_level",
+      "data": { "level": "high" }
+    })
+  );
+  assert_eq!(
+    serde_json::from_value::<RpcResponseKind>(json).unwrap(),
+    with_data
+  );
+
+  let error = RpcResponseKind::Error {
+    command: "prompt".into(),
+    error: "not ready".into(),
+  };
+  let json = serde_json::to_value(&error).unwrap();
+  assert_eq!(
+    json,
+    serde_json::json!({
+      "kind": "error",
+      "data": {
+        "command": "prompt",
+        "error": "not ready"
+      }
+    })
+  );
+  assert_eq!(
+    serde_json::from_value::<RpcResponseKind>(json).unwrap(),
+    error
+  );
+}
+
+#[test]
 fn response_success_no_data_all_commands() {
   let no_data_commands = [
     ("prompt", RpcResponseKind::Prompt),

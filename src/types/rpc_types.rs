@@ -248,7 +248,12 @@ pub struct RpcResponse {
 
 /// Response variants for each command. Success responses carry data (if any)
 /// directly; the `Error` variant handles failures for any command.
-#[derive(Debug, Clone, PartialEq)]
+///
+/// The serde representation of `RpcResponseKind` is for application-level
+/// serialization and does not match pi's RPC wire response shape. Use
+/// [`RpcResponse`] for wire-compatible serialization.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[serde(tag = "kind", content = "data", rename_all = "snake_case")]
 pub enum RpcResponseKind {
   // -- No-data success responses --
   Prompt,
