@@ -1,6 +1,6 @@
 [package]
 name = "pi-rpc-rs"
-version = "0.1.1"
+version = "0.1.2"
 authors = ["Anton Geraschenko <gerascheko@gmail.com>"]
 edition = "2024"
 exclude = ["docs/", "scripts/"]
