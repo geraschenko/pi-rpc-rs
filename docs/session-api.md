@@ -57,6 +57,14 @@ pub struct PiSessionConfig {
     pub session_dir: Option<PathBuf>,
     /// Additional CLI arguments passed to pi.
     pub extra_args: Vec<String>,
+    /// Whether to check `pi --version` against `COMPATIBLE_PI_VERSION` before spawning.
+    pub version_check: PiVersionCheck,
+}
+
+pub enum PiVersionCheck {
+    Disabled,
+    Warn,
+    Error,
 }
 
 pub enum SessionPersistence {

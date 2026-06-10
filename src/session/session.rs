@@ -15,6 +15,7 @@ use tokio::task::JoinHandle;
 use tokio_util::sync::CancellationToken;
 
 use super::error::PiError;
+use crate::COMPATIBLE_PI_VERSION;
 use crate::types::{
   DeserializationErrorContext, JsonErrorInfo, RpcCommand, RpcCommandKind, RpcEvent,
   RpcExtensionUIRequest, RpcResponse, SessionEvent,
@@ -36,6 +37,15 @@ pub enum SessionPersistence {
   CustomDir(PathBuf),
 }
 
+/// How `PiSession::spawn` should handle installed pi version mismatches.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+pub enum PiVersionCheck {
+  Disabled,
+  #[default]
+  Warn,
+  Error,
+}
+
 /// Configuration for spawning a pi session.
 #[derive(Debug, Clone)]
 pub struct PiSessionConfig {
@@ -53,6 +63,8 @@ pub struct PiSessionConfig {
   pub session_dir: Option<PathBuf>,
   /// Additional CLI arguments passed to pi.
   pub extra_args: Vec<String>,
+  /// Whether to check `pi --version` against [`COMPATIBLE_PI_VERSION`] before spawning.
+  pub version_check: PiVersionCheck,
 }
 
 impl Default for PiSessionConfig {
@@ -65,6 +77,7 @@ impl Default for PiSessionConfig {
       working_dir: None,
       session_dir: None,
       extra_args: vec![],
+      version_check: PiVersionCheck::default(),
     }
   }
 }
@@ -74,6 +87,107 @@ impl Default for PiSessionConfig {
 // ============================================================================
 
 const DEFAULT_TIMEOUT: Duration = Duration::from_secs(30);
+
+async fn check_pi_version(config: &PiSessionConfig) -> Result<(), PiError> {
+  if config.version_check == PiVersionCheck::Disabled {
+    return Ok(());
+  }
+
+  match installed_pi_version(config).await {
+    Ok(actual) if actual == COMPATIBLE_PI_VERSION => Ok(()),
+    Ok(actual) => handle_version_check_problem(
+      config.version_check,
+      PiError::VersionMismatch {
+        expected: COMPATIBLE_PI_VERSION.to_string(),
+        actual,
+      },
+    ),
+    Err(err) => handle_version_check_problem(config.version_check, err),
+  }
+}
+
+fn handle_version_check_problem(check: PiVersionCheck, err: PiError) -> Result<(), PiError> {
+  match check {
+    PiVersionCheck::Disabled => Ok(()),
+    PiVersionCheck::Warn => {
+      log::warn!("{err}");
+      Ok(())
+    }
+    PiVersionCheck::Error => Err(err),
+  }
+}
+
+async fn installed_pi_version(config: &PiSessionConfig) -> Result<String, PiError> {
+  let mut cmd = Command::new(&config.pi_binary);
+  cmd.arg("--version");
+
+  if let Some(ref working_dir) = config.working_dir {
+    cmd.current_dir(working_dir);
+  }
+
+  let output = cmd
+    .output()
+    .await
+    .map_err(|err| PiError::VersionCheckFailed {
+      message: format!("failed to run '{} --version': {err}", config.pi_binary),
+    })?;
+
+  let stdout = String::from_utf8_lossy(&output.stdout);
+  let stderr = String::from_utf8_lossy(&output.stderr);
+  let combined = format!("{stdout}\n{stderr}");
+
+  if !output.status.success() {
+    return Err(PiError::VersionCheckFailed {
+      message: format!(
+        "'{} --version' exited with status {}: {}",
+        config.pi_binary,
+        output.status,
+        combined.trim()
+      ),
+    });
+  }
+
+  parse_pi_version(&combined).ok_or_else(|| PiError::VersionCheckFailed {
+    message: format!(
+      "could not parse pi version from '{} --version' output: {}",
+      config.pi_binary,
+      combined.trim()
+    ),
+  })
+}
+
+fn parse_pi_version(output: &str) -> Option<String> {
+  output.split_whitespace().find_map(|token| {
+    let token = token
+      .trim_matches(|c: char| !c.is_ascii_alphanumeric() && c != '.' && c != '-')
+      .trim_start_matches('v');
+
+    if is_semver_like(token) {
+      Some(token.to_string())
+    } else {
+      None
+    }
+  })
+}
+
+fn is_semver_like(version: &str) -> bool {
+  let mut parts = version.split('.');
+  let (Some(major), Some(minor), Some(patch)) = (parts.next(), parts.next(), parts.next()) else {
+    return false;
+  };
+  if parts.next().is_some() {
+    return false;
+  }
+
+  let patch = patch.split_once('-').map_or(patch, |(patch, _)| patch);
+
+  !major.is_empty()
+    && !minor.is_empty()
+    && !patch.is_empty()
+    && major.chars().all(|c| c.is_ascii_digit())
+    && minor.chars().all(|c| c.is_ascii_digit())
+    && patch.chars().all(|c| c.is_ascii_digit())
+}
 
 // ============================================================================
 // PiSession
@@ -110,6 +224,8 @@ pub struct PiSession {
 impl PiSession {
   /// Spawn a new pi process in RPC mode.
   pub async fn spawn(config: PiSessionConfig) -> Result<PiSession, PiError> {
+    check_pi_version(&config).await?;
+
     let mut cmd = Command::new(&config.pi_binary);
     cmd.arg("--mode").arg("rpc");
 

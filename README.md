@@ -5,7 +5,7 @@ A Rust crate providing a typed, ergonomic interface to
 This is a faithful Rust analog of pi's `AgentSession` — exposing the full
 RPC protocol with type safety.
 
-**Compatible with pi v0.79.0.** This version is tracked in
+**Compatible with pi 0.79.0.** This version is tracked in
 `src/types/upstream.toml`.
 
 ## Compatibility
@@ -16,15 +16,20 @@ pi version, use the corresponding old `pi-rpc-rs` release.
 
 | `pi-rpc-rs` version | Compatible pi version |
 | ------------------- | --------------------- |
-| `0.1.2`             | `v0.79.0`             |
-| `0.1.1`             | `v0.78.0`             |
-| `0.1.0`             | `v0.75.3`             |
+| `0.1.2`             | `0.79.0`              |
+| `0.1.1`             | `0.78.0`              |
+| `0.1.0`             | `0.75.3`              |
 
 ## Versioning
 
 Each `pi-rpc-rs` release targets exactly one upstream pi version. When upstream
 pi compatibility changes, bump the patch version of this crate and add a new row
 to the compatibility table. Do not overwrite previous compatibility rows.
+
+The target pi version is exposed in code as `pi_rpc_rs::COMPATIBLE_PI_VERSION`.
+By default, `PiSession::spawn` runs `pi --version` first and logs a warning if
+it does not match. Configure this with `PiSessionConfig::version_check` and
+`PiVersionCheck::{Disabled, Warn, Error}`.
 
 ## Quick start
 

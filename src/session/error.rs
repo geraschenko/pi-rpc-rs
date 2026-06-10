@@ -17,6 +17,10 @@ pub enum PiError {
   Timeout,
   /// Pi process is not running.
   NotRunning,
+  /// Could not determine the installed pi version.
+  VersionCheckFailed { message: String },
+  /// Installed pi version does not match this crate's supported version.
+  VersionMismatch { expected: String, actual: String },
 }
 
 impl fmt::Display for PiError {
@@ -32,6 +36,11 @@ impl fmt::Display for PiError {
       PiError::Io(e) => write!(f, "IO error: {e}"),
       PiError::Timeout => write!(f, "response timeout"),
       PiError::NotRunning => write!(f, "pi process is not running"),
+      PiError::VersionCheckFailed { message } => write!(f, "pi version check failed: {message}"),
+      PiError::VersionMismatch { expected, actual } => write!(
+        f,
+        "pi version mismatch: expected {expected}, found {actual}"
+      ),
     }
   }
 }

@@ -15,6 +15,17 @@ fn top_level_readme_mentions_upstream_pi_version() {
     .and_then(toml::Value::as_str)
     .expect("Cargo.toml has a package.version string entry");
 
+  assert_eq!(
+    upstream_version,
+    pi_rpc_rs::COMPATIBLE_PI_VERSION,
+    "src/types/upstream.toml and pi_rpc_rs::COMPATIBLE_PI_VERSION should match"
+  );
+
+  assert!(
+    !upstream_version.starts_with('v'),
+    "pi compatibility versions should match `pi --version` output and not include a leading 'v'"
+  );
+
   assert!(
     readme.contains(&format!("Compatible with pi {upstream_version}")),
     "README.md should mention the pi compatibility version from src/types/upstream.toml ({upstream_version}) near the top"

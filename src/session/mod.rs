@@ -5,4 +5,4 @@ mod impl_rpc_methods;
 mod session;
 
 pub use error::PiError;
-pub use session::{PiSession, PiSessionConfig, SessionPersistence};
+pub use session::{PiSession, PiSessionConfig, PiVersionCheck, SessionPersistence};
