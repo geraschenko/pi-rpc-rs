@@ -1,4 +1,7 @@
 # pi-rpc-rs
+[![GitHub](https://img.shields.io/badge/github-geraschenko%2Fpi--rpc--rs-blue?logo=github)](https://github.com/geraschenko/pi-rpc-rs)
+[![Crates.io](https://img.shields.io/crates/v/pi-rpc-rs.svg)](https://crates.io/crates/pi-rpc-rs)
+[![Docs.rs](https://docs.rs/pi-rpc-rs/badge.svg)](https://docs.rs/pi-rpc-rs)
 
 Typed Rust bindings for [pi](https://github.com/earendil-works/pi)'s RPC mode.
 

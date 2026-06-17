@@ -43,6 +43,7 @@ run() {
 run treefmt --ci
 run cargo clippy --all-targets --all-features -- -D warnings
 run cargo nextest run --all-targets --all-features
+run cargo doc --no-deps
 
 if [[ "$release" == true ]]; then
   run cargo package
