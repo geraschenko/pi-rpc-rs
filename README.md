@@ -1,35 +1,12 @@
 # pi-rpc-rs
 
-A Rust crate providing a typed, ergonomic interface to
-[pi](https://github.com/earendil-works/pi)'s RPC mode (`pi --mode rpc`).
-This is a faithful Rust analog of pi's `AgentSession` — exposing the full
-RPC protocol with type safety.
+Typed Rust bindings for [pi](https://github.com/earendil-works/pi)'s RPC mode.
 
-**Compatible with pi 0.79.0.** This version is tracked in
-`src/types/upstream.toml`.
-
-## Compatibility
-
-This crate tracks pi's RPC wire protocol for a specific upstream pi version.
-Older pi versions are not supported by newer crate releases; if you need an old
-pi version, use the corresponding old `pi-rpc-rs` release.
-
-| `pi-rpc-rs` version | Compatible pi version |
-| ------------------- | --------------------- |
-| `0.1.2`             | `0.79.0`              |
-| `0.1.1`             | `0.78.0`              |
-| `0.1.0`             | `0.75.3`              |
-
-## Versioning
-
-Each `pi-rpc-rs` release targets exactly one upstream pi version. When upstream
-pi compatibility changes, bump the patch version of this crate and add a new row
-to the compatibility table. Do not overwrite previous compatibility rows.
-
-The target pi version is exposed in code as `pi_rpc_rs::COMPATIBLE_PI_VERSION`.
-By default, `PiSession::spawn` runs `pi --version` first and logs a warning if
-it does not match. Configure this with `PiSessionConfig::version_check` and
-`PiVersionCheck::{Disabled, Warn, Error}`.
+`PiSession` runs `pi --mode rpc` as a subprocess, rebroadcasts pi's event stream
+to subscribers, and correlates RPC responses to commands. Every pi RPC command
+is faithfully exposed as a session method. For example, `PiSession::fork` wraps
+pi's [`fork` command](https://github.com/earendil-works/pi/blob/6d5ede31c8b8584b422bd0fa2ce10a39b2a0cdce/packages/coding-agent/src/modes/rpc/rpc-types.ts#L59)
+and its return type mirrors pi's [`fork` response type](https://github.com/earendil-works/pi/blob/6d5ede31c8b8584b422bd0fa2ce10a39b2a0cdce/packages/coding-agent/src/modes/rpc/rpc-types.ts#L175).
 
 ## Quick start
 
@@ -70,53 +47,25 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 }
 ```
 
-## Architecture
-
-```
-┌──────────────────────────────────┐
-│          Your Rust code          │
-│                                  │
-│   session.prompt("...").await    │
-│   session.subscribe().await      │
-└──────────┬───────────────────────┘
-           │
-┌──────────▼───────────────────────┐
-│         pi-rpc-rs crate          │
-│                                  │
-│  Rust types                      │
-│  PiSession (owns child process)  │
-│  ├─ stdin writer (commands)      │
-│  ├─ stdout reader (events)       │
-│  ├─ command/response correlation │
-│  └─ event fan-out                │
-└──────────┬───────────────────────┘
-           │ stdin/stdout JSON lines
-┌──────────▼───────────────────────┐
-│     pi --mode rpc (child proc)   │
-└──────────────────────────────────┘
-```
-
 ## Requirements
 
-[pi](https://github.com/earendil-works/pi) must be installed and in `PATH`, and
-you must have API keys or subscriptions set up so that you can run `pi` with the
-given provider/model.
+Install [pi](https://github.com/earendil-works/pi) and make sure it is on
+`PATH`, or set `pi_binary` in the `PiSessionConfig` used to spawn the session.
+You will also need whatever API keys or subscriptions your chosen provider/model
+requires.
 
-## Running tests
+## Compatibility
 
-```bash
-# Unit tests (no pi required)
-cargo nextest run
+**Compatible with pi 0.79.0.** This version is tracked in
+`src/types/upstream.toml`.
 
-# Integration tests (requires pi + API credentials)
-cargo nextest run --run-ignored all
-```
+| `pi-rpc-rs` version | Compatible pi version |
+| ------------------- | --------------------- |
+| `0.1.2`             | `0.79.0`              |
+| `0.1.1`             | `0.78.0`              |
+| `0.1.0`             | `0.75.3`              |
 
-## Debug tool
-
-A built-in debug binary prints raw RPC traffic, useful for understanding
-pi's protocol behavior:
-
-```bash
-cargo run --bin pi-rpc-debug -- --prompt "say hello" --raw-json
-```
+The target pi version is exposed in code as `pi_rpc_rs::COMPATIBLE_PI_VERSION`.
+By default, `PiSession::spawn` runs `pi --version` first and logs a warning if
+it does not match. Configure this with `PiSessionConfig::version_check` and
+`PiVersionCheck::{Disabled, Warn, Error}`.
