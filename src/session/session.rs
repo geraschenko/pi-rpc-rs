@@ -217,7 +217,13 @@ pub struct PiSession {
   process_control_tx: mpsc::UnboundedSender<ProcessControl>,
   reader_cancel: CancellationToken,
   supervisor_cancel: CancellationToken,
+  // The reader task parses pi's stdout JSON lines, deserializes them into RPC
+  // response/event types, sends RPC responses to the caller waiting on the
+  // matching request id, and broadcasts non-response events to subscribers.
   reader_task: Option<JoinHandle<()>>,
+  // The supervisor task owns the child process: it handles PiSession::kill,
+  // watches for process exit, captures stderr, notifies subscribers, and fails
+  // any outstanding RPC requests when the process exits.
   supervisor_task: Option<JoinHandle<()>>,
 }
 
