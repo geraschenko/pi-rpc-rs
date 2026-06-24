@@ -11,14 +11,14 @@ Use this skill when updating `pi-rpc-rs` to support a new upstream pi version.
 
 1. Read `src/types/README.md` completely before inspecting code.
 2. Read `src/types/upstream.toml` to identify the currently mirrored pi version.
-3. Identify the target upstream pi version/tag. If the user did not provide one, use the latest release tag reachable from `upstream/main` in `/home/anton/git/pi-mono`:
+3. Identify the target upstream pi version/tag. If the user did not provide one, use the latest release tag reachable from `upstream/main` in `/home/anton/git/earendil-works/pi`:
 
    ```bash
-   git -C /home/anton/git/pi-mono fetch upstream main --tags
-   git -C /home/anton/git/pi-mono tag --merged upstream/main --sort=-v:refname 'v[0-9]*' | head -n1
+   git -C /home/anton/git/earendil-works/pi fetch upstream main --tags
+   git -C /home/anton/git/earendil-works/pi tag --merged upstream/main --sort=-v:refname 'v[0-9]*' | head -n1
    ```
 
-4. Confirm the target new pi version/tag exists in `/home/anton/git/pi-mono`.
+4. Confirm the target new pi version/tag exists in `/home/anton/git/earendil-works/pi`.
 5. Inspect upstream diffs before editing.
 6. Present a concise update plan to the user and wait for approval before making changes.
 
@@ -27,7 +27,7 @@ Use this skill when updating `pi-rpc-rs` to support a new upstream pi version.
 From this crate, use commands like:
 
 ```bash
-git -C /home/anton/git/pi-mono diff --stat vOLD..vNEW -- \
+git -C /home/anton/git/earendil-works/pi diff --stat vOLD..vNEW -- \
   packages/ai/src/types.ts \
   packages/agent/src/types.ts \
   packages/coding-agent/src/core/agent-session.ts \
