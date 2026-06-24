@@ -142,8 +142,21 @@ All carry `partial: AssistantMessage` (the in-progress message) and `contentInde
   output: number,
   cacheRead: number,
   cacheWrite: number,
+  cacheWrite1h?: number,
   totalTokens: number,
   cost: { input, output, cacheRead, cacheWrite, total }
+}
+```
+
+### CompactionResult
+
+```typescript
+{
+  summary: string,
+  firstKeptEntryId: string,
+  tokensBefore: number,
+  estimatedTokensAfter?: number,
+  details?: unknown
 }
 ```
 

@@ -1,4 +1,5 @@
 # pi-rpc-rs
+
 [![GitHub](https://img.shields.io/badge/github-geraschenko%2Fpi--rpc--rs-blue?logo=github)](https://github.com/geraschenko/pi-rpc-rs)
 [![Crates.io](https://img.shields.io/crates/v/pi-rpc-rs.svg)](https://crates.io/crates/pi-rpc-rs)
 [![Docs.rs](https://docs.rs/pi-rpc-rs/badge.svg)](https://docs.rs/pi-rpc-rs)
@@ -59,11 +60,12 @@ requires.
 
 ## Compatibility
 
-**Compatible with pi 0.79.0.** This version is tracked in
+**Compatible with pi 0.80.2.** This version is tracked in
 `src/types/upstream.toml`.
 
 | `pi-rpc-rs` version | Compatible pi version |
 | ------------------- | --------------------- |
+| `0.1.3`             | `0.80.2`              |
 | `0.1.2`             | `0.79.0`              |
 | `0.1.1`             | `0.78.0`              |
 | `0.1.0`             | `0.75.3`              |

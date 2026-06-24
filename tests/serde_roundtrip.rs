@@ -847,7 +847,7 @@ fn response_get_messages() {
         "data": {
             "messages": [
                 {"role": "user", "content": "hello", "timestamp": 1000.0},
-                {"role": "assistant", "content": [{"type": "text", "text": "hi there"}], "api": "anthropic", "provider": "anthropic", "model": "claude-sonnet-4-20250514", "usage": {"input": 10, "output": 5, "cacheRead": 0, "cacheWrite": 0, "totalTokens": 15, "cost": {"input": 0.01, "output": 0.005, "cacheRead": 0, "cacheWrite": 0, "total": 0.015}}, "stopReason": "stop", "timestamp": 1001.0}
+                {"role": "assistant", "content": [{"type": "text", "text": "hi there"}], "api": "anthropic", "provider": "anthropic", "model": "claude-sonnet-4-20250514", "usage": {"input": 10, "output": 5, "cacheRead": 0, "cacheWrite": 2, "cacheWrite1h": 1, "totalTokens": 17, "cost": {"input": 0.01, "output": 0.005, "cacheRead": 0, "cacheWrite": 0, "total": 0.015}}, "stopReason": "stop", "timestamp": 1001.0}
             ]
         }
     }"#;
@@ -855,7 +855,11 @@ fn response_get_messages() {
   if let RpcResponseKind::GetMessages(data) = &resp.kind {
     assert_eq!(data.messages.len(), 2);
     assert!(matches!(&data.messages[0], AgentMessage::User { .. }));
-    assert!(matches!(&data.messages[1], AgentMessage::Assistant { .. }));
+    if let AgentMessage::Assistant { usage, .. } = &data.messages[1] {
+      assert_eq!(usage.cache_write1h, Some(1.0));
+    } else {
+      panic!("Expected Assistant");
+    }
   } else {
     panic!("Expected GetMessages");
   }
@@ -939,7 +943,8 @@ fn response_compact() {
         "data": {
             "summary": "summarized",
             "firstKeptEntryId": "entry-5",
-            "tokensBefore": 50000
+            "tokensBefore": 50000,
+            "estimatedTokensAfter": 12345
         }
     }"#;
   let resp: RpcResponse = serde_json::from_str(json).unwrap();
@@ -947,6 +952,7 @@ fn response_compact() {
     assert_eq!(data.summary, "summarized");
     assert_eq!(data.first_kept_entry_id, "entry-5");
     assert_eq!(data.tokens_before, 50000.0);
+    assert_eq!(data.estimated_tokens_after, Some(12345.0));
   } else {
     panic!("Expected Compact");
   }

@@ -79,6 +79,8 @@ pub struct Usage {
   pub output: f64,
   pub cache_read: f64,
   pub cache_write: f64,
+  #[serde(default, skip_serializing_if = "Option::is_none")]
+  pub cache_write1h: Option<f64>,
   pub total_tokens: f64,
   pub cost: UsageCost,
 }
