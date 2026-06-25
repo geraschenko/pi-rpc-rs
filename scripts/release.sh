@@ -30,15 +30,7 @@ run() {
   "$@"
 }
 
-VERSION=$(
-  python3 - <<'PY'
-import tomllib
-from pathlib import Path
-
-with Path("Cargo.toml").open("rb") as f:
-    print(tomllib.load(f)["package"]["version"])
-PY
-)
+VERSION=$(toml get Cargo.toml package.version --raw)
 
 run scripts/presubmit.sh
 run cargo nextest run --all-targets --all-features --run-ignored all
