@@ -3,24 +3,18 @@ set -euo pipefail
 
 usage() {
   cat <<'USAGE'
-Usage: scripts/presubmit.sh [--release]
+Usage: scripts/presubmit.sh
 
 Runs checks expected before committing:
   - treefmt --ci
   - cargo clippy --all-targets --all-features -- -D warnings
   - cargo nextest run --all-targets --all-features
-
-With --release, also runs:
-  - cargo package
+  - cargo doc --no-deps
 USAGE
 }
 
-release=false
 for arg in "$@"; do
   case "$arg" in
-    --release)
-      release=true
-      ;;
     -h|--help)
       usage
       exit 0
@@ -44,7 +38,3 @@ run treefmt --ci
 run cargo clippy --all-targets --all-features -- -D warnings
 run cargo nextest run --all-targets --all-features
 run cargo doc --no-deps
-
-if [[ "$release" == true ]]; then
-  run cargo package
-fi
