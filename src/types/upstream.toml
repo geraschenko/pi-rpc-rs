@@ -4,7 +4,7 @@
 # crate at build time. Keep it in sync with src/types/README.md when bumping
 # the upstream pi version.
 
-version = "0.80.2"
+version = "0.80.6"
 repository = "https://github.com/earendil-works/pi"
 
 [[files]]
@@ -86,6 +86,15 @@ exports = [
   "RpcExtensionUIResponse",
 ]
 notes = "This is the primary source of truth for what crosses the RPC boundary. New imports in this file often require adding new Rust type files."
+
+[[files]]
+rust = "src/types/session_manager.rs"
+typescript = "packages/coding-agent/src/core/session-manager.ts"
+exports = [
+  "SessionEntry",
+  "SessionTreeNode",
+]
+notes = "Only RPC-returned session entries and tree nodes are mirrored."
 
 [[files]]
 rust = "src/types/source_info.rs"

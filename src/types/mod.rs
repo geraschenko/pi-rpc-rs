@@ -4,6 +4,7 @@ pub mod ai;
 pub mod bash_executor;
 pub mod compaction;
 pub mod rpc_types;
+pub mod session_manager;
 pub mod source_info;
 
 pub use agent::*;
@@ -12,4 +13,5 @@ pub use ai::*;
 pub use bash_executor::*;
 pub use compaction::*;
 pub use rpc_types::*;
+pub use session_manager::*;
 pub use source_info::*;

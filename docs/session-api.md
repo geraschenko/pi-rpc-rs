@@ -103,6 +103,9 @@ session.switch_session("/path/to/session.jsonl").await?;     // -> SwitchSession
 session.fork("entry_id").await?;                             // -> ForkData
 session.clone_session().await?;                              // -> CloneData (RPC command: "clone")
 session.get_fork_messages().await?;                          // -> GetForkMessagesData
+session.get_entries(None).await?;                             // -> GetEntriesData
+session.get_entries(Some("entry_id".into())).await?;          // entries after entry_id
+session.get_tree().await?;                                    // -> GetTreeData
 session.set_session_name("my-feature").await?;               // -> ()
 ```
 

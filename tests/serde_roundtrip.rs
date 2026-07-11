@@ -249,6 +249,11 @@ fn command_roundtrip() {
     RpcCommandKind::CycleThinkingLevel,
     RpcCommandKind::GetAvailableModels,
     RpcCommandKind::GetMessages,
+    RpcCommandKind::GetEntries { since: None },
+    RpcCommandKind::GetEntries {
+      since: Some("entry-1".into()),
+    },
+    RpcCommandKind::GetTree,
     RpcCommandKind::GetCommands,
     RpcCommandKind::GetSessionStats,
     RpcCommandKind::Clone,
@@ -289,6 +294,8 @@ fn command_kind_wire_names() {
     (RpcCommandKind::CycleThinkingLevel, "cycle_thinking_level"),
     (RpcCommandKind::GetAvailableModels, "get_available_models"),
     (RpcCommandKind::GetMessages, "get_messages"),
+    (RpcCommandKind::GetEntries { since: None }, "get_entries"),
+    (RpcCommandKind::GetTree, "get_tree"),
     (RpcCommandKind::GetCommands, "get_commands"),
     (RpcCommandKind::GetSessionStats, "get_session_stats"),
     (RpcCommandKind::Clone, "clone"),
@@ -847,7 +854,7 @@ fn response_get_messages() {
         "data": {
             "messages": [
                 {"role": "user", "content": "hello", "timestamp": 1000.0},
-                {"role": "assistant", "content": [{"type": "text", "text": "hi there"}], "api": "anthropic", "provider": "anthropic", "model": "claude-sonnet-4-20250514", "usage": {"input": 10, "output": 5, "cacheRead": 0, "cacheWrite": 2, "cacheWrite1h": 1, "totalTokens": 17, "cost": {"input": 0.01, "output": 0.005, "cacheRead": 0, "cacheWrite": 0, "total": 0.015}}, "stopReason": "stop", "timestamp": 1001.0}
+                {"role": "assistant", "content": [{"type": "text", "text": "hi there"}], "api": "anthropic", "provider": "anthropic", "model": "claude-sonnet-4-20250514", "usage": {"input": 10, "output": 5, "cacheRead": 0, "cacheWrite": 2, "cacheWrite1h": 1, "reasoning": 2, "totalTokens": 17, "cost": {"input": 0.01, "output": 0.005, "cacheRead": 0, "cacheWrite": 0, "total": 0.015}}, "stopReason": "stop", "timestamp": 1001.0}
             ]
         }
     }"#;
@@ -857,6 +864,7 @@ fn response_get_messages() {
     assert!(matches!(&data.messages[0], AgentMessage::User { .. }));
     if let AgentMessage::Assistant { usage, .. } = &data.messages[1] {
       assert_eq!(usage.cache_write1h, Some(1.0));
+      assert_eq!(usage.reasoning, Some(2.0));
     } else {
       panic!("Expected Assistant");
     }
@@ -908,6 +916,59 @@ fn response_get_fork_messages() {
     assert_eq!(data.messages[0].entry_id, "e1");
   } else {
     panic!("Expected GetForkMessages");
+  }
+}
+
+#[test]
+fn response_get_entries() {
+  let json = r#"{
+        "type": "response",
+        "id": "16",
+        "command": "get_entries",
+        "success": true,
+        "data": {
+            "entries": [
+                {"type": "message", "id": "e1", "parentId": null, "timestamp": "2026-01-01T00:00:00.000Z", "message": {"role": "user", "content": "hello", "timestamp": 1000.0}},
+                {"type": "custom", "id": "e2", "parentId": "e1", "timestamp": "2026-01-01T00:00:01.000Z", "customType": "demo", "data": {"ok": true}}
+            ],
+            "leafId": "e2"
+        }
+    }"#;
+  let resp: RpcResponse = serde_json::from_str(json).unwrap();
+  if let RpcResponseKind::GetEntries(data) = &resp.kind {
+    assert_eq!(data.entries.len(), 2);
+    assert_eq!(data.leaf_id, Some("e2".into()));
+    assert!(matches!(&data.entries[0], SessionEntry::Message(_)));
+    assert!(matches!(&data.entries[1], SessionEntry::Custom(_)));
+  } else {
+    panic!("Expected GetEntries");
+  }
+}
+
+#[test]
+fn response_get_tree() {
+  let json = r#"{
+        "type": "response",
+        "id": "17",
+        "command": "get_tree",
+        "success": true,
+        "data": {
+            "tree": [{
+                "entry": {"type": "label", "id": "l1", "parentId": null, "timestamp": "2026-01-01T00:00:00.000Z", "targetId": "e1", "label": "bookmark"},
+                "children": [],
+                "label": "bookmark",
+                "labelTimestamp": "2026-01-01T00:00:00.000Z"
+            }],
+            "leafId": null
+        }
+    }"#;
+  let resp: RpcResponse = serde_json::from_str(json).unwrap();
+  if let RpcResponseKind::GetTree(data) = &resp.kind {
+    assert_eq!(data.tree.len(), 1);
+    assert_eq!(data.tree[0].label, Some("bookmark".into()));
+    assert_eq!(data.leaf_id, None);
+  } else {
+    panic!("Expected GetTree");
   }
 }
 
@@ -1400,6 +1461,7 @@ fn thinking_level_all_variants() {
     ("\"medium\"", ThinkingLevel::Medium),
     ("\"high\"", ThinkingLevel::High),
     ("\"xhigh\"", ThinkingLevel::XHigh),
+    ("\"max\"", ThinkingLevel::Max),
   ];
   for (json, expected) in levels {
     let parsed: ThinkingLevel = serde_json::from_str(json).unwrap();

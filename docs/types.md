@@ -14,7 +14,9 @@ Defined in `rpc-types.ts` as `RpcCommand`. Discriminated union on `type` field. 
 | `abort`                   | —                                          | Abort current operation.                                                      |
 | `new_session`             | `parentSession?`                           | Start fresh session.                                                          |
 | `get_state`               | —                                          | Returns `RpcSessionState`.                                                    |
-| `get_messages`            | —                                          | Returns all `AgentMessage[]`.                                                 |
+| `get_messages`            | —                                          | Returns current context `AgentMessage[]`.                                     |
+| `get_entries`             | `since?`                                   | Returns session entries and active leaf ID.                                   |
+| `get_tree`                | —                                          | Returns session entry tree and active leaf ID.                                |
 | `set_model`               | `provider`, `modelId`                      | Switch model.                                                                 |
 | `cycle_model`             | —                                          | Cycle to next model.                                                          |
 | `get_available_models`    | —                                          | List configured models.                                                       |
@@ -66,6 +68,8 @@ Defined across `AgentEvent` (agent-core) and `AgentSessionEvent` (agent-session)
 | `tool_execution_end`     | `toolCallId`, `toolName`, `result`, `isError`                | Tool done.                                                       |
 | `queue_update`           | `steering`, `followUp`                                       | Current pending queues.                                          |
 | `compaction_start`       | `reason`                                                     | `"manual"` \| `"threshold"` \| `"overflow"`                      |
+| `agent_settled`          | —                                                            | Agent run and post-run continuations finished.                   |
+| `entry_appended`         | `entry`                                                      | Session entry appended.                                          |
 | `session_info_changed`   | `name`                                                       | Session name changed.                                            |
 | `thinking_level_changed` | `level`                                                      | Thinking level changed.                                          |
 | `compaction_end`         | `reason`, `result?`, `aborted`, `willRetry`, `errorMessage?` |                                                                  |
@@ -130,7 +134,7 @@ All carry `partial: AssistantMessage` (the in-progress message) and `contentInde
   input: string[],        // ["text", "image"]
   contextWindow: number,
   maxTokens: number,
-  cost: { input, output, cacheRead, cacheWrite }  // per million tokens
+  cost: { input, output, cacheRead, cacheWrite, tiers? }  // per million tokens
 }
 ```
 
@@ -143,6 +147,7 @@ All carry `partial: AssistantMessage` (the in-progress message) and `contentInde
   cacheRead: number,
   cacheWrite: number,
   cacheWrite1h?: number,
+  reasoning?: number,
   totalTokens: number,
   cost: { input, output, cacheRead, cacheWrite, total }
 }
@@ -160,10 +165,20 @@ All carry `partial: AssistantMessage` (the in-progress message) and `contentInde
 }
 ```
 
+### SessionEntry / SessionTreeNode
+
+`get_entries` returns `{ entries: SessionEntry[], leafId: string | null }`.
+`get_tree` returns `{ tree: SessionTreeNode[], leafId: string | null }`.
+
+`SessionEntry` is discriminated by `type`: `message`, `thinking_level_change`,
+`model_change`, `compaction`, `branch_summary`, `custom`, `custom_message`,
+`label`, or `session_info`. Each entry has `id`, `parentId`, and `timestamp`.
+`SessionTreeNode` has `entry`, `children`, and optional `label` / `labelTimestamp`.
+
 ### StopReason
 
 `"stop"` | `"length"` | `"toolUse"` | `"error"` | `"aborted"`
 
 ### ThinkingLevel
 
-`"off"` | `"minimal"` | `"low"` | `"medium"` | `"high"` | `"xhigh"`
+`"off"` | `"minimal"` | `"low"` | `"medium"` | `"high"` | `"xhigh"` | `"max"`

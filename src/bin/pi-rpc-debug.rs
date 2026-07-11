@@ -217,6 +217,10 @@ fn format_agent_event(event: &AgentEvent) -> String {
     AgentEvent::CompactionStart { reason } => {
       format!("compaction_start reason={reason:?}")
     }
+    AgentEvent::AgentSettled => "agent_settled".into(),
+    AgentEvent::EntryAppended { entry } => {
+      format!("entry_appended entry={entry:?}")
+    }
     AgentEvent::SessionInfoChanged { name } => {
       format!("session_info_changed name={name:?}")
     }

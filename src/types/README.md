@@ -1,7 +1,7 @@
 # pi RPC Type Definitions
 
 Hand-written Rust types mirroring the TypeScript definitions from
-[pi](https://github.com/earendil-works/pi) **0.80.2**.
+[pi](https://github.com/earendil-works/pi) **0.80.6**.
 
 These files are **not auto-generated** — they were written by hand to closely
 match the TypeScript sources. Each file has a doc comment at the top naming the
@@ -17,17 +17,18 @@ all pi internals.
 The human-readable mapping is below. The same mapping is also captured in
 `src/types/upstream.toml`.
 
-| Rust file          | TypeScript source                                                                                                       |
-| ------------------ | ----------------------------------------------------------------------------------------------------------------------- |
-| `ai.rs`            | `packages/ai/src/types.ts` — content blocks, messages, usage, models, streaming events                                  |
-| `agent.rs`         | `packages/agent/src/types.ts` — `AgentMessage`, `AgentEvent`, `ThinkingLevel`                                           |
-| `agent.rs`         | `packages/coding-agent/src/core/messages.ts` — declaration-merged custom message variants                               |
-| `agent.rs`         | `packages/coding-agent/src/core/agent-session.ts` — `AgentSessionEvent` variants merged into `AgentEvent`               |
-| `agent_session.rs` | `packages/coding-agent/src/core/agent-session.ts` — `SessionStats`                                                      |
-| `bash_executor.rs` | `packages/coding-agent/src/core/bash-executor.ts` — `BashResult`                                                        |
-| `compaction.rs`    | `packages/coding-agent/src/core/compaction/compaction.ts` — `CompactionResult`                                          |
-| `rpc_types.rs`     | `packages/coding-agent/src/modes/rpc/rpc-types.ts` — `RpcCommand`, `RpcResponse`, `RpcSessionState`, extension UI types |
-| `source_info.rs`   | `packages/coding-agent/src/core/source-info.ts` — source metadata for slash commands                                    |
+| Rust file            | TypeScript source                                                                                                       |
+| -------------------- | ----------------------------------------------------------------------------------------------------------------------- |
+| `ai.rs`              | `packages/ai/src/types.ts` — content blocks, messages, usage, models, streaming events                                  |
+| `agent.rs`           | `packages/agent/src/types.ts` — `AgentMessage`, `AgentEvent`, `ThinkingLevel`                                           |
+| `agent.rs`           | `packages/coding-agent/src/core/messages.ts` — declaration-merged custom message variants                               |
+| `agent.rs`           | `packages/coding-agent/src/core/agent-session.ts` — `AgentSessionEvent` variants merged into `AgentEvent`               |
+| `agent_session.rs`   | `packages/coding-agent/src/core/agent-session.ts` — `SessionStats`                                                      |
+| `bash_executor.rs`   | `packages/coding-agent/src/core/bash-executor.ts` — `BashResult`                                                        |
+| `compaction.rs`      | `packages/coding-agent/src/core/compaction/compaction.ts` — `CompactionResult`                                          |
+| `rpc_types.rs`       | `packages/coding-agent/src/modes/rpc/rpc-types.ts` — `RpcCommand`, `RpcResponse`, `RpcSessionState`, extension UI types |
+| `session_manager.rs` | `packages/coding-agent/src/core/session-manager.ts` — session entries and tree nodes returned by RPC                    |
+| `source_info.rs`     | `packages/coding-agent/src/core/source-info.ts` — source metadata for slash commands                                    |
 
 When upstream `rpc-types.ts` imports a type from a new file, add a Rust file for
 that source if the imported type crosses the wire. Do not treat this table as an

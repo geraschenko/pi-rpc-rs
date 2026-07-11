@@ -12,6 +12,7 @@ use super::agent_session::*;
 use super::ai::*;
 use super::bash_executor::*;
 use super::compaction::*;
+use super::session_manager::*;
 use super::source_info::*;
 
 fn is_false(value: &bool) -> bool {
@@ -180,6 +181,11 @@ pub enum RpcCommandKind {
   },
   Clone,
   GetForkMessages,
+  GetEntries {
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    since: Option<String>,
+  },
+  GetTree,
   GetLastAssistantText,
   SetSessionName {
     name: String,
@@ -284,6 +290,8 @@ pub enum RpcResponseKind {
   Fork(ForkData),
   Clone(CloneData),
   GetForkMessages(GetForkMessagesData),
+  GetEntries(GetEntriesData),
+  GetTree(GetTreeData),
   GetLastAssistantText(GetLastAssistantTextData),
   GetMessages(GetMessagesData),
   GetCommands(GetCommandsData),
@@ -322,6 +330,8 @@ impl RpcResponseKind {
       RpcResponseKind::Fork(_) => "fork",
       RpcResponseKind::Clone(_) => "clone",
       RpcResponseKind::GetForkMessages(_) => "get_fork_messages",
+      RpcResponseKind::GetEntries(_) => "get_entries",
+      RpcResponseKind::GetTree(_) => "get_tree",
       RpcResponseKind::GetLastAssistantText(_) => "get_last_assistant_text",
       RpcResponseKind::GetMessages(_) => "get_messages",
       RpcResponseKind::GetCommands(_) => "get_commands",
@@ -379,6 +389,20 @@ pub struct CloneData {
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct GetForkMessagesData {
   pub messages: Vec<ForkableMessage>,
+}
+
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct GetEntriesData {
+  pub entries: Vec<SessionEntry>,
+  pub leaf_id: Option<String>,
+}
+
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct GetTreeData {
+  pub tree: Vec<SessionTreeNode>,
+  pub leaf_id: Option<String>,
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -465,6 +489,8 @@ impl<'de> Deserialize<'de> for RpcResponse {
         "fork" => RpcResponseKind::Fork(data_field(obj)?),
         "clone" => RpcResponseKind::Clone(data_field(obj)?),
         "get_fork_messages" => RpcResponseKind::GetForkMessages(data_field(obj)?),
+        "get_entries" => RpcResponseKind::GetEntries(data_field(obj)?),
+        "get_tree" => RpcResponseKind::GetTree(data_field(obj)?),
         "get_last_assistant_text" => RpcResponseKind::GetLastAssistantText(data_field(obj)?),
         "get_messages" => RpcResponseKind::GetMessages(data_field(obj)?),
         "get_commands" => RpcResponseKind::GetCommands(data_field(obj)?),
@@ -532,6 +558,8 @@ const COMMAND_NAMES: &[&str] = &[
   "fork",
   "clone",
   "get_fork_messages",
+  "get_entries",
+  "get_tree",
   "get_last_assistant_text",
   "set_session_name",
   "get_messages",
@@ -584,6 +612,8 @@ impl Serialize for RpcResponse {
       RpcResponseKind::Fork(d) => serialize_success(&mut map, command, Some(d)),
       RpcResponseKind::Clone(d) => serialize_success(&mut map, command, Some(d)),
       RpcResponseKind::GetForkMessages(d) => serialize_success(&mut map, command, Some(d)),
+      RpcResponseKind::GetEntries(d) => serialize_success(&mut map, command, Some(d)),
+      RpcResponseKind::GetTree(d) => serialize_success(&mut map, command, Some(d)),
       RpcResponseKind::GetLastAssistantText(d) => serialize_success(&mut map, command, Some(d)),
       RpcResponseKind::GetMessages(d) => serialize_success(&mut map, command, Some(d)),
       RpcResponseKind::GetCommands(d) => serialize_success(&mut map, command, Some(d)),

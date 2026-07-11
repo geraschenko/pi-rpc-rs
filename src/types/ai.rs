@@ -81,6 +81,8 @@ pub struct Usage {
   pub cache_write: f64,
   #[serde(default, skip_serializing_if = "Option::is_none")]
   pub cache_write1h: Option<f64>,
+  #[serde(default, skip_serializing_if = "Option::is_none")]
+  pub reasoning: Option<f64>,
   pub total_tokens: f64,
   pub cost: UsageCost,
 }
@@ -159,6 +161,18 @@ pub struct ModelCost {
   pub output: f64,
   pub cache_read: f64,
   pub cache_write: f64,
+  #[serde(default, skip_serializing_if = "Option::is_none")]
+  pub tiers: Option<Vec<ModelCostTier>>,
+}
+
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ModelCostTier {
+  pub input: f64,
+  pub output: f64,
+  pub cache_read: f64,
+  pub cache_write: f64,
+  pub input_tokens_above: f64,
 }
 
 // ============================================================================

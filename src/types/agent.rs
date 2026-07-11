@@ -10,6 +10,7 @@ use strum::{AsRefStr, Display};
 
 use super::ai::*;
 use super::compaction::CompactionResult;
+use super::session_manager::SessionEntry;
 
 // ============================================================================
 // ThinkingLevel
@@ -25,6 +26,7 @@ pub enum ThinkingLevel {
   Medium,
   High,
   XHigh,
+  Max,
 }
 
 // ============================================================================
@@ -175,12 +177,16 @@ pub enum AgentEvent {
   },
 
   // -- From packages/coding-agent/src/core/agent-session.ts (AgentSessionEvent extensions) --
+  AgentSettled,
   QueueUpdate {
     steering: Vec<String>,
     follow_up: Vec<String>,
   },
   CompactionStart {
     reason: CompactionReason,
+  },
+  EntryAppended {
+    entry: SessionEntry,
   },
   SessionInfoChanged {
     #[serde(default, skip_serializing_if = "Option::is_none")]

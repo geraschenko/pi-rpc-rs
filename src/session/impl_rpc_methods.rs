@@ -166,6 +166,20 @@ impl PiSession {
     match_response!(resp, RpcResponseKind::GetForkMessages(data) => data)
   }
 
+  /// Get session entries, optionally only entries after `since`.
+  pub async fn get_entries(&self, since: Option<String>) -> Result<GetEntriesData, PiError> {
+    let resp = self
+      .send_command(RpcCommandKind::GetEntries { since })
+      .await?;
+    match_response!(resp, RpcResponseKind::GetEntries(data) => data)
+  }
+
+  /// Get the session tree.
+  pub async fn get_tree(&self) -> Result<GetTreeData, PiError> {
+    let resp = self.send_command(RpcCommandKind::GetTree).await?;
+    match_response!(resp, RpcResponseKind::GetTree(data) => data)
+  }
+
   /// Set the session name.
   pub async fn set_session_name(&self, name: &str) -> Result<(), PiError> {
     let resp = self
