@@ -196,12 +196,13 @@ pub enum RpcEvent {
     Agent(AgentEvent),
     ExtensionUI(RpcExtensionUIRequest),
     Session(SessionEvent),
+    Unknown(serde_json::Value),
 }
 ```
 
 It has a custom `Deserialize` impl that checks the `type` field: `"extension_ui_request"` → `ExtensionUI`, `"session_*"` → `Session`, anything else → `Agent`.
 
-Every valid JSON line from pi's stdout that is not a response (i.e., `type` != `"response"`) becomes an `RpcEvent`. Lines with a recognized `AgentEvent` type become `RpcEvent::Agent(...)`, lines with `type == "extension_ui_request"` become `RpcEvent::ExtensionUI(...)`.
+Every valid JSON line from pi's stdout that is not a response (i.e., `type` != `"response"`) becomes an `RpcEvent`. Lines with a recognized `AgentEvent` type become `RpcEvent::Agent(...)`, lines with `type == "extension_ui_request"` become `RpcEvent::ExtensionUI(...)`, and unrecognized records become `RpcEvent::Unknown(serde_json::Value)`.
 
 `RpcEvent::Session(...)` is emitted by this Rust wrapper for local session lifecycle/protocol conditions, currently:
 

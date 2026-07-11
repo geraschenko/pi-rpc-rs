@@ -1230,6 +1230,35 @@ fn rpc_event_session_deserialization_error() {
   assert_eq!(serialized, expected);
 }
 
+#[test]
+fn rpc_event_unknown_records_roundtrip() {
+  let records = [
+    r#"{"type":"hello","protocol":"pi-rpc-socket","version":1}"#,
+    r#"{"type":"session_changed","sessionId":"s1","sessionFile":"/tmp/session.jsonl"}"#,
+    r#"{"type":"tree_navigated","oldLeafId":"a","newLeafId":"b","reason":"test"}"#,
+    r#"{"type":"ui_wait_start","requestId":"r1","request":{"method":"confirm"}}"#,
+    r#"{"type":"ui_wait_end","requestId":"r1","request":{"method":"confirm"},"resolution":{"confirmed":true}}"#,
+    r#"{"type":"shutdown"}"#,
+    r#"{"type":"never_heard_of_it","x":1}"#,
+  ];
+
+  for json in records {
+    let expected: serde_json::Value = serde_json::from_str(json).unwrap();
+    let event: RpcEvent = serde_json::from_str(json).unwrap();
+    assert_eq!(event, RpcEvent::Unknown(expected.clone()));
+    assert_eq!(serde_json::to_value(&event).unwrap(), expected);
+  }
+}
+
+#[test]
+fn rpc_event_missing_or_non_string_type_is_unknown() {
+  for json in [r#"{"x":1}"#, r#"{"type":123,"x":1}"#] {
+    let expected: serde_json::Value = serde_json::from_str(json).unwrap();
+    let event: RpcEvent = serde_json::from_str(json).unwrap();
+    assert_eq!(event, RpcEvent::Unknown(expected));
+  }
+}
+
 // ============================================================================
 // Extension UI types
 // ============================================================================

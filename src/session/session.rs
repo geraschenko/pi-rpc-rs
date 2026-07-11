@@ -17,8 +17,8 @@ use tokio_util::sync::CancellationToken;
 use super::error::PiError;
 use crate::COMPATIBLE_PI_VERSION;
 use crate::types::{
-  DeserializationErrorContext, JsonErrorInfo, RpcCommand, RpcCommandKind, RpcEvent,
-  RpcExtensionUIRequest, RpcResponse, SessionEvent,
+  DeserializationErrorContext, JsonErrorInfo, RpcCommand, RpcCommandKind, RpcEvent, RpcResponse,
+  SessionEvent,
 };
 
 // ============================================================================
@@ -558,38 +558,20 @@ fn spawn_reader_task(
             let _ = sender.send(Ok(response));
           }
         }
-      } else if type_str == "extension_ui_request" {
-        // Deserialize as RpcExtensionUIRequest
-        let request: RpcExtensionUIRequest = match serde_json::from_value(value) {
-          Ok(r) => r,
-          Err(e) => {
-            fan_out(
-              &subscribers,
-              RpcEvent::Session(SessionEvent::DeserializationError {
-                context: DeserializationErrorContext::RpcExtensionUIRequest,
-                error: JsonErrorInfo::from(&e),
-                line: Some(line),
-              }),
-            )
-            .await;
-            continue;
-          }
+      } else {
+        let error_context = if type_str == "extension_ui_request" {
+          DeserializationErrorContext::RpcExtensionUIRequest
+        } else {
+          DeserializationErrorContext::AgentEvent
         };
 
-        let event = RpcEvent::ExtensionUI(request);
-        fan_out(&subscribers, event).await;
-      } else {
-        // Deserialize as AgentEvent
         match serde_json::from_value(value) {
-          Ok(agent_event) => {
-            let event = RpcEvent::Agent(agent_event);
-            fan_out(&subscribers, event).await;
-          }
+          Ok(event) => fan_out(&subscribers, event).await,
           Err(e) => {
             fan_out(
               &subscribers,
               RpcEvent::Session(SessionEvent::DeserializationError {
-                context: DeserializationErrorContext::AgentEvent,
+                context: error_context,
                 error: JsonErrorInfo::from(&e),
                 line: Some(line),
               }),

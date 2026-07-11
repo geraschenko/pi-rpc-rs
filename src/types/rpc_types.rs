@@ -657,6 +657,7 @@ pub enum RpcEvent {
   Agent(AgentEvent),
   ExtensionUI(RpcExtensionUIRequest),
   Session(SessionEvent),
+  Unknown(serde_json::Value),
 }
 
 /// Events emitted by the Rust session wrapper itself, rather than by pi's
@@ -715,6 +716,7 @@ impl Serialize for RpcEvent {
       RpcEvent::Agent(event) => event.serialize(serializer),
       RpcEvent::ExtensionUI(req) => req.serialize(serializer),
       RpcEvent::Session(event) => event.serialize(serializer),
+      RpcEvent::Unknown(value) => value.serialize(serializer),
     }
   }
 }
@@ -728,12 +730,17 @@ impl<'de> Deserialize<'de> for RpcEvent {
       let req: RpcExtensionUIRequest =
         serde_json::from_value(value).map_err(serde::de::Error::custom)?;
       Ok(RpcEvent::ExtensionUI(req))
-    } else if type_str.starts_with("session_") {
+    } else if matches!(
+      type_str,
+      "session_process_exited" | "session_deserialization_error"
+    ) {
       let event: SessionEvent = serde_json::from_value(value).map_err(serde::de::Error::custom)?;
       Ok(RpcEvent::Session(event))
     } else {
-      let event: AgentEvent = serde_json::from_value(value).map_err(serde::de::Error::custom)?;
-      Ok(RpcEvent::Agent(event))
+      match serde_json::from_value(value.clone()) {
+        Ok(event) => Ok(RpcEvent::Agent(event)),
+        Err(_) => Ok(RpcEvent::Unknown(value)),
+      }
     }
   }
 }

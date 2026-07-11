@@ -72,6 +72,9 @@ async fn main() {
           RpcEvent::Session(event) => {
             eprintln!("[event #{count}] Session {:?}", event);
           }
+          RpcEvent::Unknown(value) => {
+            eprintln!("[event #{count}] Unknown {value}");
+          }
         }
       }
     }

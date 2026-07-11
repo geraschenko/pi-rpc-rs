@@ -77,6 +77,8 @@ Defined across `AgentEvent` (agent-core) and `AgentSessionEvent` (agent-session)
 | `auto_retry_end`         | `success`, `attempt`, `finalError?`                          |                                                                  |
 | `extension_error`        | `extensionPath`, `event`, `error`                            |                                                                  |
 
+Unrecognized non-response records deserialize as `RpcEvent::Unknown(serde_json::Value)` so clients can tolerate future or fork-specific wire records.
+
 Plus extension UI requests (stdout):
 
 | Event                  | Key fields                                  |
