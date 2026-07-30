@@ -5,7 +5,7 @@
 use serde::{Deserialize, Serialize};
 
 use super::agent::AgentMessage;
-use super::ai::ContentBlock;
+use super::ai::{ContentBlock, Usage};
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
@@ -47,6 +47,8 @@ pub struct CompactionEntry {
   #[serde(default, skip_serializing_if = "Option::is_none")]
   pub details: Option<serde_json::Value>,
   #[serde(default, skip_serializing_if = "Option::is_none")]
+  pub usage: Option<Usage>,
+  #[serde(default, skip_serializing_if = "Option::is_none")]
   pub from_hook: Option<bool>,
 }
 
@@ -60,6 +62,8 @@ pub struct BranchSummaryEntry {
   pub summary: String,
   #[serde(default, skip_serializing_if = "Option::is_none")]
   pub details: Option<serde_json::Value>,
+  #[serde(default, skip_serializing_if = "Option::is_none")]
+  pub usage: Option<Usage>,
   #[serde(default, skip_serializing_if = "Option::is_none")]
   pub from_hook: Option<bool>,
 }

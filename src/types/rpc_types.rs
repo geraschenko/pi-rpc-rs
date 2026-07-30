@@ -135,6 +135,7 @@ pub enum RpcCommandKind {
     level: ThinkingLevel,
   },
   CycleThinkingLevel,
+  GetAvailableThinkingLevels,
 
   // -- Queue modes --
   SetSteeringMode {
@@ -282,6 +283,7 @@ pub enum RpcResponseKind {
   CycleModel(Option<CycleModelData>),
   GetAvailableModels(GetAvailableModelsData),
   CycleThinkingLevel(Option<CycleThinkingLevelData>),
+  GetAvailableThinkingLevels(GetAvailableThinkingLevelsData),
   Compact(CompactionResult),
   Bash(BashResult),
   GetSessionStats(SessionStats),
@@ -322,6 +324,7 @@ impl RpcResponseKind {
       RpcResponseKind::CycleModel(_) => "cycle_model",
       RpcResponseKind::GetAvailableModels(_) => "get_available_models",
       RpcResponseKind::CycleThinkingLevel(_) => "cycle_thinking_level",
+      RpcResponseKind::GetAvailableThinkingLevels(_) => "get_available_thinking_levels",
       RpcResponseKind::Compact(_) => "compact",
       RpcResponseKind::Bash(_) => "bash",
       RpcResponseKind::GetSessionStats(_) => "get_session_stats",
@@ -363,6 +366,11 @@ pub struct GetAvailableModelsData {
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct CycleThinkingLevelData {
   pub level: ThinkingLevel,
+}
+
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct GetAvailableThinkingLevelsData {
+  pub levels: Vec<ThinkingLevel>,
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -481,6 +489,9 @@ impl<'de> Deserialize<'de> for RpcResponse {
         "cycle_model" => RpcResponseKind::CycleModel(nullable_data_field(obj)?),
         "get_available_models" => RpcResponseKind::GetAvailableModels(data_field(obj)?),
         "cycle_thinking_level" => RpcResponseKind::CycleThinkingLevel(nullable_data_field(obj)?),
+        "get_available_thinking_levels" => {
+          RpcResponseKind::GetAvailableThinkingLevels(data_field(obj)?)
+        }
         "compact" => RpcResponseKind::Compact(data_field(obj)?),
         "bash" => RpcResponseKind::Bash(data_field(obj)?),
         "get_session_stats" => RpcResponseKind::GetSessionStats(data_field(obj)?),
@@ -544,6 +555,7 @@ const COMMAND_NAMES: &[&str] = &[
   "get_available_models",
   "set_thinking_level",
   "cycle_thinking_level",
+  "get_available_thinking_levels",
   "set_steering_mode",
   "set_follow_up_mode",
   "compact",
@@ -604,6 +616,9 @@ impl Serialize for RpcResponse {
       RpcResponseKind::CycleModel(d) => serialize_success(&mut map, command, Some(d)),
       RpcResponseKind::GetAvailableModels(d) => serialize_success(&mut map, command, Some(d)),
       RpcResponseKind::CycleThinkingLevel(d) => serialize_success(&mut map, command, Some(d)),
+      RpcResponseKind::GetAvailableThinkingLevels(d) => {
+        serialize_success(&mut map, command, Some(d))
+      }
       RpcResponseKind::Compact(d) => serialize_success(&mut map, command, Some(d)),
       RpcResponseKind::Bash(d) => serialize_success(&mut map, command, Some(d)),
       RpcResponseKind::GetSessionStats(d) => serialize_success(&mut map, command, Some(d)),

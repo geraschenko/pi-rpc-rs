@@ -67,6 +67,8 @@ pub enum AgentMessage {
     stop_reason: StopReason,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     error_message: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    raw_stop_reason: Option<String>,
     timestamp: f64,
   },
   ToolResult {
@@ -75,6 +77,10 @@ pub enum AgentMessage {
     content: Vec<ContentBlock>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     details: Option<serde_json::Value>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    usage: Option<Usage>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    added_tool_names: Option<Vec<String>>,
     is_error: bool,
     timestamp: f64,
   },
@@ -136,6 +142,7 @@ pub enum AgentEvent {
   AgentStart,
   AgentEnd {
     messages: Vec<AgentMessage>,
+    will_retry: bool,
   },
 
   // Turn lifecycle
@@ -216,6 +223,23 @@ pub enum AgentEvent {
     #[serde(default, skip_serializing_if = "Option::is_none")]
     final_error: Option<String>,
   },
+  SummarizationRetryScheduled {
+    attempt: f64,
+    max_attempts: f64,
+    delay_ms: f64,
+    error_message: String,
+  },
+  SummarizationRetryAttemptStart {
+    source: SummarizationRetrySource,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    reason: Option<CompactionReason>,
+  },
+  SummarizationRetryFinished,
+  BashExecutionUpdate {
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    id: Option<String>,
+    delta: String,
+  },
 
   // -- From packages/coding-agent/src/modes/rpc/rpc-mode.ts (untyped in TS, only exists on the wire) --
   ExtensionError {
@@ -232,4 +256,12 @@ pub enum CompactionReason {
   Manual,
   Threshold,
   Overflow,
+}
+
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, AsRefStr, Display)]
+#[serde(rename_all = "camelCase")]
+#[strum(serialize_all = "camelCase")]
+pub enum SummarizationRetrySource {
+  BranchSummary,
+  Compaction,
 }

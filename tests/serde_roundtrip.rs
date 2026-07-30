@@ -247,6 +247,7 @@ fn command_roundtrip() {
     RpcCommandKind::Abort,
     RpcCommandKind::CycleModel,
     RpcCommandKind::CycleThinkingLevel,
+    RpcCommandKind::GetAvailableThinkingLevels,
     RpcCommandKind::GetAvailableModels,
     RpcCommandKind::GetMessages,
     RpcCommandKind::GetEntries { since: None },
@@ -292,6 +293,10 @@ fn command_kind_wire_names() {
     (RpcCommandKind::Abort, "abort"),
     (RpcCommandKind::CycleModel, "cycle_model"),
     (RpcCommandKind::CycleThinkingLevel, "cycle_thinking_level"),
+    (
+      RpcCommandKind::GetAvailableThinkingLevels,
+      "get_available_thinking_levels",
+    ),
     (RpcCommandKind::GetAvailableModels, "get_available_models"),
     (RpcCommandKind::GetMessages, "get_messages"),
     (RpcCommandKind::GetEntries { since: None }, "get_entries"),
@@ -422,6 +427,7 @@ fn small_enum_wire_names() {
     (ThinkingLevel::XHigh.as_ref(), "xhigh"),
     (CompactionReason::Threshold.as_ref(), "threshold"),
     (TextSignaturePhase::FinalAnswer.as_ref(), "final_answer"),
+    (StopReason::Pending.as_ref(), "pending"),
     (StopReason::ToolUse.as_ref(), "toolUse"),
     (SourceScope::Temporary.as_ref(), "temporary"),
     (SourceOrigin::TopLevel.as_ref(), "top-level"),
@@ -504,6 +510,11 @@ fn response_kind_command_name() {
   assert_eq!(
     RpcResponseKind::CycleThinkingLevel(None).command_name(),
     "cycle_thinking_level"
+  );
+  assert_eq!(
+    RpcResponseKind::GetAvailableThinkingLevels(GetAvailableThinkingLevelsData { levels: vec![] })
+      .command_name(),
+    "get_available_thinking_levels"
   );
   assert_eq!(
     RpcResponseKind::Error {
@@ -854,7 +865,7 @@ fn response_get_messages() {
         "data": {
             "messages": [
                 {"role": "user", "content": "hello", "timestamp": 1000.0},
-                {"role": "assistant", "content": [{"type": "text", "text": "hi there"}], "api": "anthropic", "provider": "anthropic", "model": "claude-sonnet-4-20250514", "usage": {"input": 10, "output": 5, "cacheRead": 0, "cacheWrite": 2, "cacheWrite1h": 1, "reasoning": 2, "totalTokens": 17, "cost": {"input": 0.01, "output": 0.005, "cacheRead": 0, "cacheWrite": 0, "total": 0.015}}, "stopReason": "stop", "timestamp": 1001.0}
+                {"role": "assistant", "content": [{"type": "text", "text": "hi there"}], "api": "anthropic", "provider": "anthropic", "model": "claude-sonnet-4-20250514", "usage": {"input": 10, "output": 5, "cacheRead": 0, "cacheWrite": 2, "cacheWrite1h": 1, "reasoning": 2, "totalTokens": 17, "cost": {"input": 0.01, "output": 0.005, "cacheRead": 0, "cacheWrite": 0, "total": 0.015}}, "stopReason": "stop", "rawStopReason": "end_turn", "timestamp": 1001.0}
             ]
         }
     }"#;
@@ -862,9 +873,15 @@ fn response_get_messages() {
   if let RpcResponseKind::GetMessages(data) = &resp.kind {
     assert_eq!(data.messages.len(), 2);
     assert!(matches!(&data.messages[0], AgentMessage::User { .. }));
-    if let AgentMessage::Assistant { usage, .. } = &data.messages[1] {
+    if let AgentMessage::Assistant {
+      usage,
+      raw_stop_reason,
+      ..
+    } = &data.messages[1]
+    {
       assert_eq!(usage.cache_write1h, Some(1.0));
       assert_eq!(usage.reasoning, Some(2.0));
+      assert_eq!(raw_stop_reason.as_deref(), Some("end_turn"));
     } else {
       panic!("Expected Assistant");
     }
@@ -946,6 +963,29 @@ fn response_get_entries() {
 }
 
 #[test]
+fn session_summary_entries_include_usage() {
+  let usage = r#"{"input":10,"output":5,"cacheRead":0,"cacheWrite":0,"totalTokens":15,"cost":{"input":0.01,"output":0.02,"cacheRead":0,"cacheWrite":0,"total":0.03}}"#;
+  for (entry_type, fields) in [
+    (
+      "compaction",
+      r#""summary":"summary","firstKeptEntryId":"e1","tokensBefore":100"#,
+    ),
+    ("branch_summary", r#""fromId":"e1","summary":"summary""#),
+  ] {
+    let json = format!(
+      r#"{{"type":"{entry_type}","id":"e2","parentId":"e1","timestamp":"2026-01-01T00:00:00.000Z",{fields},"usage":{usage}}}"#
+    );
+    let entry: SessionEntry = serde_json::from_str(&json).unwrap();
+    let entry_usage = match entry {
+      SessionEntry::Compaction(entry) => entry.usage,
+      SessionEntry::BranchSummary(entry) => entry.usage,
+      other => panic!("Expected summary entry, got {other:?}"),
+    };
+    assert_eq!(entry_usage.map(|usage| usage.total_tokens), Some(15.0));
+  }
+}
+
+#[test]
 fn response_get_tree() {
   let json = r#"{
         "type": "response",
@@ -995,17 +1035,32 @@ fn response_cycle_thinking_level() {
 }
 
 #[test]
+fn response_get_available_thinking_levels() {
+  let json = r#"{"type":"response","id":"18","command":"get_available_thinking_levels","success":true,"data":{"levels":["off","low","high"]}}"#;
+  let resp: RpcResponse = serde_json::from_str(json).unwrap();
+  if let RpcResponseKind::GetAvailableThinkingLevels(data) = &resp.kind {
+    assert_eq!(
+      data.levels,
+      vec![ThinkingLevel::Off, ThinkingLevel::Low, ThinkingLevel::High]
+    );
+  } else {
+    panic!("Expected GetAvailableThinkingLevels");
+  }
+}
+
+#[test]
 fn response_compact() {
   let json = r#"{
         "type": "response",
-        "id": "18",
+        "id": "19",
         "command": "compact",
         "success": true,
         "data": {
             "summary": "summarized",
             "firstKeptEntryId": "entry-5",
             "tokensBefore": 50000,
-            "estimatedTokensAfter": 12345
+            "estimatedTokensAfter": 12345,
+            "usage": {"input": 10, "output": 5, "cacheRead": 0, "cacheWrite": 0, "totalTokens": 15, "cost": {"input": 0.01, "output": 0.02, "cacheRead": 0, "cacheWrite": 0, "total": 0.03}}
         }
     }"#;
   let resp: RpcResponse = serde_json::from_str(json).unwrap();
@@ -1014,6 +1069,10 @@ fn response_compact() {
     assert_eq!(data.first_kept_entry_id, "entry-5");
     assert_eq!(data.tokens_before, 50000.0);
     assert_eq!(data.estimated_tokens_after, Some(12345.0));
+    assert_eq!(
+      data.usage.as_ref().map(|usage| usage.total_tokens),
+      Some(15.0)
+    );
   } else {
     panic!("Expected Compact");
   }
@@ -1130,13 +1189,55 @@ fn event_message_update_text_delta() {
 
 #[test]
 fn event_agent_end() {
-  let json = r#"{"type":"agent_end","messages":[]}"#;
+  let json = r#"{"type":"agent_end","messages":[],"willRetry":false}"#;
   let event: AgentEvent = serde_json::from_str(json).unwrap();
-  if let AgentEvent::AgentEnd { messages } = &event {
+  if let AgentEvent::AgentEnd {
+    messages,
+    will_retry,
+  } = &event
+  {
     assert!(messages.is_empty());
+    assert!(!will_retry);
   } else {
     panic!("Expected AgentEnd");
   }
+}
+
+#[test]
+fn event_summarization_retry_and_bash_update() {
+  let scheduled: AgentEvent = serde_json::from_str(
+    r#"{"type":"summarization_retry_scheduled","attempt":1,"maxAttempts":3,"delayMs":500,"errorMessage":"disconnected"}"#,
+  )
+  .unwrap();
+  assert!(matches!(
+    scheduled,
+    AgentEvent::SummarizationRetryScheduled { attempt: 1.0, .. }
+  ));
+
+  let attempt: AgentEvent = serde_json::from_str(
+    r#"{"type":"summarization_retry_attempt_start","source":"compaction","reason":"overflow"}"#,
+  )
+  .unwrap();
+  assert!(matches!(
+    attempt,
+    AgentEvent::SummarizationRetryAttemptStart {
+      source: SummarizationRetrySource::Compaction,
+      reason: Some(CompactionReason::Overflow),
+    }
+  ));
+
+  let finished: AgentEvent =
+    serde_json::from_str(r#"{"type":"summarization_retry_finished"}"#).unwrap();
+  assert!(matches!(finished, AgentEvent::SummarizationRetryFinished));
+
+  let bash_update: AgentEvent =
+    serde_json::from_str(r#"{"type":"bash_execution_update","id":"42","delta":"output\n"}"#)
+      .unwrap();
+  assert!(matches!(
+    bash_update,
+    AgentEvent::BashExecutionUpdate { ref id, ref delta }
+      if id.as_deref() == Some("42") && delta == "output\n"
+  ));
 }
 
 #[test]
@@ -1458,6 +1559,8 @@ fn agent_message_tool_result() {
         "toolCallId": "tc1",
         "toolName": "bash",
         "content": [{"type": "text", "text": "output"}],
+        "usage": {"input": 0, "output": 5, "cacheRead": 0, "cacheWrite": 0, "totalTokens": 5, "cost": {"input": 0, "output": 0.01, "cacheRead": 0, "cacheWrite": 0, "total": 0.01}},
+        "addedToolNames": ["deferred_tool"],
         "isError": false,
         "timestamp": 3000.0
     }"#;
@@ -1465,12 +1568,19 @@ fn agent_message_tool_result() {
   if let AgentMessage::ToolResult {
     tool_call_id,
     tool_name,
+    usage,
+    added_tool_names,
     is_error,
     ..
   } = &msg
   {
     assert_eq!(tool_call_id, "tc1");
     assert_eq!(tool_name, "bash");
+    assert_eq!(usage.as_ref().map(|usage| usage.total_tokens), Some(5.0));
+    assert_eq!(
+      added_tool_names.as_ref().map(|names| names[0].as_str()),
+      Some("deferred_tool")
+    );
     assert!(!is_error);
   } else {
     panic!("Expected ToolResult");

@@ -132,6 +132,7 @@ session.get_available_models().await?;     // -> GetAvailableModelsData
 ```rust
 session.set_thinking_level(ThinkingLevel::High).await?; // -> ()
 session.cycle_thinking_level().await?;     // -> Option<CycleThinkingLevelData>
+session.get_available_thinking_levels().await?; // -> GetAvailableThinkingLevelsData
 ```
 
 ### Queue modes

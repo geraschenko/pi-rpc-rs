@@ -216,7 +216,7 @@ async fn test_prompt_and_events() {
   let agent_end_messages = events
     .iter()
     .find_map(|e| match e {
-      RpcEvent::Agent(AgentEvent::AgentEnd { messages }) => Some(messages),
+      RpcEvent::Agent(AgentEvent::AgentEnd { messages, .. }) => Some(messages),
       _ => None,
     })
     .expect("missing agent_end");
@@ -337,6 +337,20 @@ async fn test_cycle_thinking_level() {
   } else {
     eprintln!("cycle_thinking_level returned None");
   }
+}
+
+#[tokio::test]
+#[ignore]
+async fn test_get_available_thinking_levels() {
+  let session = spawn_test_session().await;
+
+  let data = session
+    .get_available_thinking_levels()
+    .await
+    .expect("get_available_thinking_levels failed");
+
+  assert!(!data.levels.is_empty());
+  eprintln!("Available thinking levels: {:?}", data.levels);
 }
 
 // ============================================================================

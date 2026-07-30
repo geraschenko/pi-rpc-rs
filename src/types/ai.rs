@@ -105,6 +105,7 @@ pub struct UsageCost {
 #[serde(rename_all = "camelCase")]
 #[strum(serialize_all = "camelCase")]
 pub enum StopReason {
+  Pending,
   Stop,
   Length,
   ToolUse,

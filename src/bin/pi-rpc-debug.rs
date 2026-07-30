@@ -143,7 +143,7 @@ async fn main() {
 fn format_agent_event(event: &AgentEvent) -> String {
   match event {
     AgentEvent::AgentStart => "agent_start".into(),
-    AgentEvent::AgentEnd { messages } => {
+    AgentEvent::AgentEnd { messages, .. } => {
       format!("agent_end ({} messages)", messages.len())
     }
     AgentEvent::TurnStart => "turn_start".into(),
@@ -258,6 +258,21 @@ fn format_agent_event(event: &AgentEvent) -> String {
       final_error,
     } => {
       format!("auto_retry_end success={success} attempt={attempt} error={final_error:?}")
+    }
+    AgentEvent::SummarizationRetryScheduled {
+      attempt,
+      max_attempts,
+      delay_ms,
+      error_message,
+    } => format!(
+      "summarization_retry_scheduled attempt={attempt}/{max_attempts} delay={delay_ms}ms error={error_message}"
+    ),
+    AgentEvent::SummarizationRetryAttemptStart { source, reason } => {
+      format!("summarization_retry_attempt_start source={source:?} reason={reason:?}")
+    }
+    AgentEvent::SummarizationRetryFinished => "summarization_retry_finished".into(),
+    AgentEvent::BashExecutionUpdate { id, delta } => {
+      format!("bash_execution_update id={id:?} delta={delta:?}")
     }
     AgentEvent::ExtensionError {
       extension_path,

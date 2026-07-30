@@ -6,39 +6,40 @@ Complete inventory of types that cross the RPC boundary (stdin commands, stdout 
 
 Defined in `rpc-types.ts` as `RpcCommand`. Discriminated union on `type` field. All have optional `id: string` for request/response correlation.
 
-| Command                   | Key fields                                 | Notes                                                                         |
-| ------------------------- | ------------------------------------------ | ----------------------------------------------------------------------------- |
-| `prompt`                  | `message`, `images?`, `streamingBehavior?` | Main entry point. `streamingBehavior` required if agent is already streaming. |
-| `steer`                   | `message`, `images?`                       | Queue interrupt message.                                                      |
-| `follow_up`               | `message`, `images?`                       | Queue message for after agent finishes.                                       |
-| `abort`                   | —                                          | Abort current operation.                                                      |
-| `new_session`             | `parentSession?`                           | Start fresh session.                                                          |
-| `get_state`               | —                                          | Returns `RpcSessionState`.                                                    |
-| `get_messages`            | —                                          | Returns current context `AgentMessage[]`.                                     |
-| `get_entries`             | `since?`                                   | Returns session entries and active leaf ID.                                   |
-| `get_tree`                | —                                          | Returns session entry tree and active leaf ID.                                |
-| `set_model`               | `provider`, `modelId`                      | Switch model.                                                                 |
-| `cycle_model`             | —                                          | Cycle to next model.                                                          |
-| `get_available_models`    | —                                          | List configured models.                                                       |
-| `set_thinking_level`      | `level`                                    | `"off"` \| `"minimal"` \| `"low"` \| `"medium"` \| `"high"` \| `"xhigh"`      |
-| `cycle_thinking_level`    | —                                          | Cycle through levels.                                                         |
-| `set_steering_mode`       | `mode`                                     | `"all"` \| `"one-at-a-time"`                                                  |
-| `set_follow_up_mode`      | `mode`                                     | `"all"` \| `"one-at-a-time"`                                                  |
-| `compact`                 | `customInstructions?`                      | Manual compaction.                                                            |
-| `set_auto_compaction`     | `enabled`                                  | Toggle auto-compaction.                                                       |
-| `set_auto_retry`          | `enabled`                                  | Toggle auto-retry.                                                            |
-| `abort_retry`             | —                                          | Cancel in-progress retry.                                                     |
-| `bash`                    | `command`, `excludeFromContext`            | Execute shell command; optionally exclude output from LLM context.            |
-| `abort_bash`              | —                                          | Cancel running bash.                                                          |
-| `get_session_stats`       | —                                          | Token usage and cost.                                                         |
-| `export_html`             | `outputPath?`                              | Export session to HTML.                                                       |
-| `switch_session`          | `sessionPath`                              | Load different session file.                                                  |
-| `fork`                    | `entryId`                                  | Fork from a previous user message.                                            |
-| `clone`                   | —                                          | Clone the current active branch into a new session.                           |
-| `get_fork_messages`       | —                                          | List forkable user messages.                                                  |
-| `get_last_assistant_text` | —                                          | Get last assistant response text.                                             |
-| `set_session_name`        | `name`                                     | Set display name for session.                                                 |
-| `get_commands`            | —                                          | List available slash commands.                                                |
+| Command                         | Key fields                                 | Notes                                                                         |
+| ------------------------------- | ------------------------------------------ | ----------------------------------------------------------------------------- |
+| `prompt`                        | `message`, `images?`, `streamingBehavior?` | Main entry point. `streamingBehavior` required if agent is already streaming. |
+| `steer`                         | `message`, `images?`                       | Queue interrupt message.                                                      |
+| `follow_up`                     | `message`, `images?`                       | Queue message for after agent finishes.                                       |
+| `abort`                         | —                                          | Abort current operation.                                                      |
+| `new_session`                   | `parentSession?`                           | Start fresh session.                                                          |
+| `get_state`                     | —                                          | Returns `RpcSessionState`.                                                    |
+| `get_messages`                  | —                                          | Returns current context `AgentMessage[]`.                                     |
+| `get_entries`                   | `since?`                                   | Returns session entries and active leaf ID.                                   |
+| `get_tree`                      | —                                          | Returns session entry tree and active leaf ID.                                |
+| `set_model`                     | `provider`, `modelId`                      | Switch model.                                                                 |
+| `cycle_model`                   | —                                          | Cycle to next model.                                                          |
+| `get_available_models`          | —                                          | List configured models.                                                       |
+| `set_thinking_level`            | `level`                                    | `"off"` \| `"minimal"` \| `"low"` \| `"medium"` \| `"high"` \| `"xhigh"`      |
+| `cycle_thinking_level`          | —                                          | Cycle through levels.                                                         |
+| `get_available_thinking_levels` | —                                          | List thinking levels supported by the current model.                          |
+| `set_steering_mode`             | `mode`                                     | `"all"` \| `"one-at-a-time"`                                                  |
+| `set_follow_up_mode`            | `mode`                                     | `"all"` \| `"one-at-a-time"`                                                  |
+| `compact`                       | `customInstructions?`                      | Manual compaction.                                                            |
+| `set_auto_compaction`           | `enabled`                                  | Toggle auto-compaction.                                                       |
+| `set_auto_retry`                | `enabled`                                  | Toggle auto-retry.                                                            |
+| `abort_retry`                   | —                                          | Cancel in-progress retry.                                                     |
+| `bash`                          | `command`, `excludeFromContext`            | Execute shell command; optionally exclude output from LLM context.            |
+| `abort_bash`                    | —                                          | Cancel running bash.                                                          |
+| `get_session_stats`             | —                                          | Token usage and cost.                                                         |
+| `export_html`                   | `outputPath?`                              | Export session to HTML.                                                       |
+| `switch_session`                | `sessionPath`                              | Load different session file.                                                  |
+| `fork`                          | `entryId`                                  | Fork from a previous user message.                                            |
+| `clone`                         | —                                          | Clone the current active branch into a new session.                           |
+| `get_fork_messages`             | —                                          | List forkable user messages.                                                  |
+| `get_last_assistant_text`       | —                                          | Get last assistant response text.                                             |
+| `set_session_name`              | `name`                                     | Set display name for session.                                                 |
+| `get_commands`                  | —                                          | List available slash commands.                                                |
 
 Plus extension UI responses (stdin):
 
@@ -54,28 +55,32 @@ All have `type: "response"`, `command: string`, `success: boolean`. On failure: 
 
 Defined across `AgentEvent` (agent-core) and `AgentSessionEvent` (agent-session). Discriminated union on `type` field.
 
-| Event                    | Key fields                                                   | Notes                                                            |
-| ------------------------ | ------------------------------------------------------------ | ---------------------------------------------------------------- |
-| `agent_start`            | —                                                            | Agent begins processing prompt.                                  |
-| `agent_end`              | `messages: AgentMessage[]`                                   | Agent done. Contains ALL new messages from this run.             |
-| `turn_start`             | —                                                            | New turn (1 assistant response + tool calls).                    |
-| `turn_end`               | `message`, `toolResults`                                     | Turn complete.                                                   |
-| `message_start`          | `message: AgentMessage`                                      | Message begins. Emitted for user, assistant, toolResult, custom. |
-| `message_update`         | `message`, `assistantMessageEvent`                           | Streaming delta. Only for assistant messages.                    |
-| `message_end`            | `message: AgentMessage`                                      | Message complete.                                                |
-| `tool_execution_start`   | `toolCallId`, `toolName`, `args`                             | Tool begins.                                                     |
-| `tool_execution_update`  | `toolCallId`, `toolName`, `args`, `partialResult`            | Tool progress.                                                   |
-| `tool_execution_end`     | `toolCallId`, `toolName`, `result`, `isError`                | Tool done.                                                       |
-| `queue_update`           | `steering`, `followUp`                                       | Current pending queues.                                          |
-| `compaction_start`       | `reason`                                                     | `"manual"` \| `"threshold"` \| `"overflow"`                      |
-| `agent_settled`          | —                                                            | Agent run and post-run continuations finished.                   |
-| `entry_appended`         | `entry`                                                      | Session entry appended.                                          |
-| `session_info_changed`   | `name`                                                       | Session name changed.                                            |
-| `thinking_level_changed` | `level`                                                      | Thinking level changed.                                          |
-| `compaction_end`         | `reason`, `result?`, `aborted`, `willRetry`, `errorMessage?` |                                                                  |
-| `auto_retry_start`       | `attempt`, `maxAttempts`, `delayMs`, `errorMessage`          |                                                                  |
-| `auto_retry_end`         | `success`, `attempt`, `finalError?`                          |                                                                  |
-| `extension_error`        | `extensionPath`, `event`, `error`                            |                                                                  |
+| Event                               | Key fields                                                   | Notes                                                            |
+| ----------------------------------- | ------------------------------------------------------------ | ---------------------------------------------------------------- |
+| `agent_start`                       | —                                                            | Agent begins processing prompt.                                  |
+| `agent_end`                         | `messages: AgentMessage[]`, `willRetry`                      | Agent done. Contains ALL new messages from this run.             |
+| `turn_start`                        | —                                                            | New turn (1 assistant response + tool calls).                    |
+| `turn_end`                          | `message`, `toolResults`                                     | Turn complete.                                                   |
+| `message_start`                     | `message: AgentMessage`                                      | Message begins. Emitted for user, assistant, toolResult, custom. |
+| `message_update`                    | `message`, `assistantMessageEvent`                           | Streaming delta. Only for assistant messages.                    |
+| `message_end`                       | `message: AgentMessage`                                      | Message complete.                                                |
+| `tool_execution_start`              | `toolCallId`, `toolName`, `args`                             | Tool begins.                                                     |
+| `tool_execution_update`             | `toolCallId`, `toolName`, `args`, `partialResult`            | Tool progress.                                                   |
+| `tool_execution_end`                | `toolCallId`, `toolName`, `result`, `isError`                | Tool done.                                                       |
+| `queue_update`                      | `steering`, `followUp`                                       | Current pending queues.                                          |
+| `compaction_start`                  | `reason`                                                     | `"manual"` \| `"threshold"` \| `"overflow"`                      |
+| `agent_settled`                     | —                                                            | Agent run and post-run continuations finished.                   |
+| `entry_appended`                    | `entry`                                                      | Session entry appended.                                          |
+| `session_info_changed`              | `name`                                                       | Session name changed.                                            |
+| `thinking_level_changed`            | `level`                                                      | Thinking level changed.                                          |
+| `compaction_end`                    | `reason`, `result?`, `aborted`, `willRetry`, `errorMessage?` |                                                                  |
+| `auto_retry_start`                  | `attempt`, `maxAttempts`, `delayMs`, `errorMessage`          |                                                                  |
+| `auto_retry_end`                    | `success`, `attempt`, `finalError?`                          |                                                                  |
+| `summarization_retry_scheduled`     | `attempt`, `maxAttempts`, `delayMs`, `errorMessage`          | Compaction or branch-summary retry scheduled.                    |
+| `summarization_retry_attempt_start` | `source`, `reason?`                                          | Summarization retry started.                                     |
+| `summarization_retry_finished`      | —                                                            | Summarization retry sequence finished.                           |
+| `bash_execution_update`             | `id?`, `delta`                                               | Streaming output from an RPC bash command.                       |
+| `extension_error`                   | `extensionPath`, `event`, `error`                            |                                                                  |
 
 Unrecognized non-response records deserialize as `RpcEvent::Unknown(serde_json::Value)` so clients can tolerate future or fork-specific wire records.
 
@@ -100,6 +105,11 @@ Methods: `select`, `confirm`, `input`, `editor` (dialog, need response), `notify
 | `custom`            | `CustomMessage`            | pi-coding-agent |
 | `branchSummary`     | `BranchSummaryMessage`     | pi-coding-agent |
 | `compactionSummary` | `CompactionSummaryMessage` | pi-coding-agent |
+
+Assistant messages may include `rawStopReason`, preserving the provider's stop
+reason alongside pi's normalized `stopReason`. Tool-result messages may include
+execution `usage` and `addedToolNames` for tools made available at that point in
+the transcript.
 
 ### Content blocks (nested in messages)
 
@@ -163,6 +173,7 @@ All carry `partial: AssistantMessage` (the in-progress message) and `contentInde
   firstKeptEntryId: string,
   tokensBefore: number,
   estimatedTokensAfter?: number,
+  usage?: Usage,
   details?: unknown
 }
 ```
@@ -175,11 +186,13 @@ All carry `partial: AssistantMessage` (the in-progress message) and `contentInde
 `SessionEntry` is discriminated by `type`: `message`, `thinking_level_change`,
 `model_change`, `compaction`, `branch_summary`, `custom`, `custom_message`,
 `label`, or `session_info`. Each entry has `id`, `parentId`, and `timestamp`.
-`SessionTreeNode` has `entry`, `children`, and optional `label` / `labelTimestamp`.
+Compaction and branch-summary entries may also include the summarization call's
+`usage`. `SessionTreeNode` has `entry`, `children`, and optional `label` /
+`labelTimestamp`.
 
 ### StopReason
 
-`"stop"` | `"length"` | `"toolUse"` | `"error"` | `"aborted"`
+`"pending"` | `"stop"` | `"length"` | `"toolUse"` | `"error"` | `"aborted"`
 
 ### ThinkingLevel
 

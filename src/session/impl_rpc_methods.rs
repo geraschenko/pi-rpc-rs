@@ -279,6 +279,16 @@ impl PiSession {
     match_response!(resp, RpcResponseKind::CycleThinkingLevel(data) => data)
   }
 
+  /// Get the thinking levels supported by the current model.
+  pub async fn get_available_thinking_levels(
+    &self,
+  ) -> Result<GetAvailableThinkingLevelsData, PiError> {
+    let resp = self
+      .send_command(RpcCommandKind::GetAvailableThinkingLevels)
+      .await?;
+    match_response!(resp, RpcResponseKind::GetAvailableThinkingLevels(data) => data)
+  }
+
   // ========================================================================
   // Queue modes
   // ========================================================================
