@@ -68,7 +68,7 @@ fn assistant_text(msg: &AgentMessage) -> Option<String> {
 }
 
 /// Check that an assistant message doesn't have an error.
-fn assert_no_error(msg: &AgentMessage) {
+fn assert_no_error<T: std::fmt::Debug + ?Sized>(msg: &AgentMessage, diagnostic: &T) {
   if let AgentMessage::Assistant {
     error_message,
     stop_reason,
@@ -77,14 +77,14 @@ fn assert_no_error(msg: &AgentMessage) {
   {
     assert!(
       error_message.is_none(),
-      "assistant message has error: {:?} (stop_reason={:?})",
+      "assistant message has error: {:?} (stop_reason={:?})\nfull diagnostic context:\n{diagnostic:#?}",
       error_message,
       stop_reason
     );
     assert_ne!(
       *stop_reason,
       StopReason::Error,
-      "assistant stop_reason is Error"
+      "assistant stop_reason is Error\nfull diagnostic context:\n{diagnostic:#?}"
     );
   }
 }
@@ -139,76 +139,80 @@ async fn test_prompt_and_events() {
 
   let events = collect_events_until_agent_end(&mut rx, LLM_TIMEOUT).await;
 
-  // Verify the full expected event sequence
-  let has = |f: fn(&RpcEvent) -> bool| events.iter().any(f);
+  type EventPredicate = fn(&RpcEvent) -> bool;
+  let expected_events: &[(&str, EventPredicate)] = &[
+    ("agent_start", |event| {
+      matches!(event, RpcEvent::Agent(AgentEvent::AgentStart))
+    }),
+    ("turn_start", |event| {
+      matches!(event, RpcEvent::Agent(AgentEvent::TurnStart))
+    }),
+    ("user message_start", |event| {
+      matches!(
+        event,
+        RpcEvent::Agent(AgentEvent::MessageStart {
+          message: AgentMessage::User { .. }
+        })
+      )
+    }),
+    ("user message_end", |event| {
+      matches!(
+        event,
+        RpcEvent::Agent(AgentEvent::MessageEnd {
+          message: AgentMessage::User { .. }
+        })
+      )
+    }),
+    ("assistant message_start", |event| {
+      matches!(
+        event,
+        RpcEvent::Agent(AgentEvent::MessageStart {
+          message: AgentMessage::Assistant { .. }
+        })
+      )
+    }),
+    ("text_delta message_update", |event| {
+      matches!(
+        event,
+        RpcEvent::Agent(AgentEvent::MessageUpdate {
+          assistant_message_event: AssistantMessageEvent::TextDelta { .. },
+          ..
+        })
+      )
+    }),
+    ("assistant message_end", |event| {
+      matches!(
+        event,
+        RpcEvent::Agent(AgentEvent::MessageEnd {
+          message: AgentMessage::Assistant { .. }
+        })
+      )
+    }),
+    ("turn_end", |event| {
+      matches!(event, RpcEvent::Agent(AgentEvent::TurnEnd { .. }))
+    }),
+    ("agent_end", |event| {
+      matches!(event, RpcEvent::Agent(AgentEvent::AgentEnd { .. }))
+    }),
+  ];
 
-  assert!(
-    has(|e| matches!(e, RpcEvent::Agent(AgentEvent::AgentStart))),
-    "missing agent_start"
-  );
-  assert!(
-    has(|e| matches!(e, RpcEvent::Agent(AgentEvent::TurnStart))),
-    "missing turn_start"
-  );
-  assert!(
-    has(|e| matches!(
-      e,
-      RpcEvent::Agent(AgentEvent::MessageStart {
-        message: AgentMessage::User { .. }
-      })
-    )),
-    "missing user message_start"
-  );
-  assert!(
-    has(|e| matches!(
-      e,
-      RpcEvent::Agent(AgentEvent::MessageEnd {
-        message: AgentMessage::User { .. }
-      })
-    )),
-    "missing user message_end"
-  );
-  assert!(
-    has(|e| matches!(
-      e,
-      RpcEvent::Agent(AgentEvent::MessageStart {
-        message: AgentMessage::Assistant { .. }
-      })
-    )),
-    "missing assistant message_start"
-  );
-  assert!(
-    has(|e| matches!(
-      e,
-      RpcEvent::Agent(AgentEvent::MessageUpdate {
-        assistant_message_event: AssistantMessageEvent::TextDelta { .. },
-        ..
-      })
-    )),
-    "missing text_delta message_update"
-  );
-  assert!(
-    has(|e| matches!(
-      e,
-      RpcEvent::Agent(AgentEvent::MessageEnd {
-        message: AgentMessage::Assistant { .. }
-      })
-    )),
-    "missing assistant message_end"
-  );
-  assert!(
-    has(|e| matches!(e, RpcEvent::Agent(AgentEvent::TurnEnd { .. }))),
-    "missing turn_end"
-  );
-  assert!(
-    has(|e| matches!(e, RpcEvent::Agent(AgentEvent::AgentEnd { .. }))),
-    "missing agent_end"
-  );
+  let mut next_event_index = 0;
+  for (expected_name, predicate) in expected_events {
+    let relative_index = events[next_event_index..]
+      .iter()
+      .position(predicate)
+      .unwrap_or_else(|| {
+        panic!(
+          "missing {expected_name} after event index {next_event_index}\nfull event stream:\n{events:#?}"
+        )
+      });
+    next_event_index += relative_index + 1;
+  }
 
   // Verify assistant actually produced content without errors
   for event in &events {
     if let RpcEvent::Agent(AgentEvent::MessageEnd { message }) = event {
-      assert_no_error(message);
+      assert_no_error(message, &events);
     }
   }
 
@@ -219,19 +223,23 @@ async fn test_prompt_and_events() {
       RpcEvent::Agent(AgentEvent::AgentEnd { messages, .. }) => Some(messages),
       _ => None,
     })
-    .expect("missing agent_end");
+    .unwrap_or_else(|| panic!("missing agent_end\nfull event stream:\n{events:#?}"));
 
   let last_assistant = agent_end_messages
     .iter()
     .rev()
     .find(|m| matches!(m, AgentMessage::Assistant { .. }))
-    .expect("no assistant message in agent_end");
-  assert_no_error(last_assistant);
+    .unwrap_or_else(|| {
+      panic!("no assistant message in agent_end\nfull event stream:\n{events:#?}")
+    });
+  assert_no_error(last_assistant, &events);
 
-  let text = assistant_text(last_assistant).expect("assistant message had no text content");
+  let text = assistant_text(last_assistant).unwrap_or_else(|| {
+    panic!("assistant message had no text content\nfull event stream:\n{events:#?}")
+  });
   assert!(
     text.contains("PONG"),
-    "expected PONG in response, got: {text:?}"
+    "expected PONG in response, got: {text:?}\nfull event stream:\n{events:#?}"
   );
 }
 
@@ -721,7 +729,7 @@ async fn test_get_messages_after_prompt() {
     .rev()
     .find(|m| matches!(m, AgentMessage::Assistant { .. }))
     .expect("no assistant message found");
-  assert_no_error(last_assistant);
+  assert_no_error(last_assistant, &messages.messages);
   let text = assistant_text(last_assistant).expect("assistant had no text content");
   assert!(
     text.contains("TEST_REPLY"),

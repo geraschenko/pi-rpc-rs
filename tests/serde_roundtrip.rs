@@ -429,6 +429,7 @@ fn small_enum_wire_names() {
     (TextSignaturePhase::FinalAnswer.as_ref(), "final_answer"),
     (StopReason::Pending.as_ref(), "pending"),
     (StopReason::ToolUse.as_ref(), "toolUse"),
+    (StopReason::Deferred.as_ref(), "deferred"),
     (SourceScope::Temporary.as_ref(), "temporary"),
     (SourceOrigin::TopLevel.as_ref(), "top-level"),
     (
@@ -452,13 +453,15 @@ fn tagged_enum_wire_names() {
     name: "tool".into(),
     arguments: Default::default(),
     thought_signature: None,
+    namespace: None,
   };
   assert_eq!(content.as_ref(), "toolCall");
   assert_eq!(content.to_string(), "toolCall");
 
   let assistant_event = AssistantMessageEvent::ToolcallStart {
     content_index: 0.0,
-    partial: Box::new(serde_json::json!({})),
+    id: "call-1".into(),
+    tool_name: "bash".into(),
   };
   assert_eq!(assistant_event.as_ref(), "toolcall_start");
 
@@ -740,7 +743,8 @@ fn response_get_available_models() {
                 "input": ["text"],
                 "cost": {"input": 1.0, "output": 5.0, "cacheRead": 0.1, "cacheWrite": 1.0},
                 "contextWindow": 100000,
-                "maxTokens": 4096
+                "maxTokens": 4096,
+                "samplingParams": {"top_p": 0.9}
             }]
         }
     }"#;
@@ -748,6 +752,10 @@ fn response_get_available_models() {
   if let RpcResponseKind::GetAvailableModels(data) = &resp.kind {
     assert_eq!(data.models.len(), 1);
     assert_eq!(data.models[0].id, "test-model");
+    assert_eq!(
+      data.models[0].sampling_params.as_ref().unwrap()["top_p"],
+      serde_json::json!(0.9)
+    );
   } else {
     panic!("Expected GetAvailableModels");
   }
@@ -865,7 +873,7 @@ fn response_get_messages() {
         "data": {
             "messages": [
                 {"role": "user", "content": "hello", "timestamp": 1000.0},
-                {"role": "assistant", "content": [{"type": "text", "text": "hi there"}], "api": "anthropic", "provider": "anthropic", "model": "claude-sonnet-4-20250514", "usage": {"input": 10, "output": 5, "cacheRead": 0, "cacheWrite": 2, "cacheWrite1h": 1, "reasoning": 2, "totalTokens": 17, "cost": {"input": 0.01, "output": 0.005, "cacheRead": 0, "cacheWrite": 0, "total": 0.015}}, "stopReason": "stop", "rawStopReason": "end_turn", "timestamp": 1001.0}
+                {"role": "assistant", "content": [{"type": "text", "text": "hi there"}], "api": "anthropic", "provider": "anthropic", "model": "claude-sonnet-4-20250514", "usage": {"input": 10, "output": 5, "cacheRead": 0, "cacheWrite": 2, "cacheWrite1h": 1, "reasoning": 2, "totalTokens": 17, "cost": {"input": 0.01, "output": 0.005, "cacheRead": 0, "cacheWrite": 0, "total": 0.015}}, "stopReason": "deferred", "deferred": {"provider": "anthropic", "modelId": "claude-sonnet-4-20250514", "api": "anthropic-messages", "id": "batch-1", "expiresAt": 2000, "pollAfterMs": 500, "data": {"rowId": "row-1"}}, "rawStopReason": "deferred", "endTurn": false, "timestamp": 1001.0}
             ]
         }
     }"#;
@@ -875,13 +883,21 @@ fn response_get_messages() {
     assert!(matches!(&data.messages[0], AgentMessage::User { .. }));
     if let AgentMessage::Assistant {
       usage,
+      stop_reason,
+      deferred,
       raw_stop_reason,
+      end_turn,
       ..
     } = &data.messages[1]
     {
       assert_eq!(usage.cache_write1h, Some(1.0));
       assert_eq!(usage.reasoning, Some(2.0));
-      assert_eq!(raw_stop_reason.as_deref(), Some("end_turn"));
+      assert_eq!(stop_reason, &StopReason::Deferred);
+      let deferred = deferred.as_ref().unwrap();
+      assert_eq!(deferred.id, "batch-1");
+      assert_eq!(deferred.data, Some(serde_json::json!({"rowId": "row-1"})));
+      assert_eq!(raw_stop_reason.as_deref(), Some("deferred"));
+      assert_eq!(*end_turn, Some(false));
     } else {
       panic!("Expected Assistant");
     }
@@ -1172,19 +1188,34 @@ fn event_message_start_user() {
 fn event_message_update_text_delta() {
   let json = r#"{
         "type": "message_update",
-        "message": {"role": "assistant", "content": [{"type": "text", "text": "h"}], "api": "anthropic", "provider": "anthropic", "model": "test", "usage": {"input": 0, "output": 0, "cacheRead": 0, "cacheWrite": 0, "totalTokens": 0, "cost": {"input": 0, "output": 0, "cacheRead": 0, "cacheWrite": 0, "total": 0}}, "stopReason": "stop", "timestamp": 1000.0},
-        "assistantMessageEvent": {"type": "text_delta", "contentIndex": 0, "delta": "h", "partial": {}}
+        "usage": {"input": 1, "output": 2, "cacheRead": 3, "cacheWrite": 4, "totalTokens": 10, "cost": {"input": 0, "output": 0, "cacheRead": 0, "cacheWrite": 0, "total": 0}},
+        "assistantMessageEvent": {"type": "text_delta", "contentIndex": 0, "delta": "h"}
     }"#;
   let event: AgentEvent = serde_json::from_str(json).unwrap();
   if let AgentEvent::MessageUpdate {
+    usage,
     assistant_message_event: AssistantMessageEvent::TextDelta { delta, .. },
-    ..
   } = &event
   {
+    assert_eq!(usage.total_tokens, 10.0);
     assert_eq!(delta, "h");
   } else {
     panic!("Expected MessageUpdate with text_delta");
   }
+}
+
+#[test]
+fn event_message_update_toolcall_start() {
+  let json = r#"{"type":"toolcall_start","contentIndex":0,"id":"call-1","toolName":"bash"}"#;
+  let event: AssistantMessageEvent = serde_json::from_str(json).unwrap();
+  assert!(matches!(
+    event,
+    AssistantMessageEvent::ToolcallStart {
+      content_index: 0.0,
+      ref id,
+      ref tool_name,
+    } if id == "call-1" && tool_name == "bash"
+  ));
 }
 
 #[test]
@@ -1491,18 +1522,20 @@ fn content_block_image() {
 
 #[test]
 fn content_block_tool_call() {
-  let json = r#"{"type":"toolCall","id":"tc1","name":"bash","arguments":{"command":"ls"}}"#;
+  let json = r#"{"type":"toolCall","id":"tc1","name":"bash","arguments":{"command":"ls"},"namespace":"shell"}"#;
   let block: ContentBlock = serde_json::from_str(json).unwrap();
   if let ContentBlock::ToolCall {
     id,
     name,
     arguments,
+    namespace,
     ..
   } = &block
   {
     assert_eq!(id, "tc1");
     assert_eq!(name, "bash");
     assert_eq!(arguments["command"], "ls");
+    assert_eq!(namespace.as_deref(), Some("shell"));
   } else {
     panic!("Expected ToolCall");
   }

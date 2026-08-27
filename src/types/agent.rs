@@ -66,9 +66,13 @@ pub enum AgentMessage {
     usage: Usage,
     stop_reason: StopReason,
     #[serde(default, skip_serializing_if = "Option::is_none")]
+    deferred: Option<Box<DeferredHandle>>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
     error_message: Option<String>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     raw_stop_reason: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    end_turn: Option<bool>,
     timestamp: f64,
   },
   ToolResult {
@@ -157,7 +161,7 @@ pub enum AgentEvent {
     message: AgentMessage,
   },
   MessageUpdate {
-    message: AgentMessage,
+    usage: Usage,
     assistant_message_event: AssistantMessageEvent,
   },
   MessageEnd {

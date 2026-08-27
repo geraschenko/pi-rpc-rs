@@ -19,12 +19,28 @@ struct Args {
   #[arg(long)]
   prompt: Option<String>,
 
-  /// Print raw JSON instead of formatted output
-  #[arg(long)]
+  /// Print reserialized event JSON with its decoded RpcEvent classification
+  #[arg(long, conflicts_with = "jsonl")]
   raw_json: bool,
 
-  /// How long to wait after prompt completes or after startup (seconds)
-  #[arg(long, default_value = "3")]
+  /// Print machine-readable JSONL records to stdout and diagnostics to stderr
+  #[arg(long, conflicts_with = "raw_json")]
+  jsonl: bool,
+
+  /// Path to the pi binary
+  #[arg(long, default_value = "pi")]
+  pi_binary: String,
+
+  /// Provider passed to pi
+  #[arg(long, default_value = "openai-codex")]
+  provider: String,
+
+  /// Model passed to pi
+  #[arg(long, default_value = "gpt-5.5")]
+  model: String,
+
+  /// Completion timeout after a prompt, or observation duration without one (seconds)
+  #[arg(long, default_value = "30")]
   wait: u64,
 }
 
@@ -35,9 +51,10 @@ async fn main() {
   eprintln!("--- Spawning pi --mode rpc --no-session ---");
 
   let config = PiSessionConfig {
+    pi_binary: args.pi_binary.clone(),
     session_persistence: SessionPersistence::Disabled,
-    provider: Some("openai-codex".to_string()),
-    model: Some("gpt-5.1".to_string()),
+    provider: Some(args.provider.clone()),
+    model: Some(args.model.clone()),
     ..Default::default()
   };
 
@@ -50,15 +67,29 @@ async fn main() {
   let mut rx = session.subscribe().await;
 
   let raw_json = args.raw_json;
+  let jsonl = args.jsonl;
+  let (agent_settled_tx, agent_settled_rx) = tokio::sync::oneshot::channel();
 
   // Spawn a task to print all events as they arrive
   let event_task = tokio::spawn(async move {
     let mut count = 0u64;
+    let mut agent_settled_tx = Some(agent_settled_tx);
     while let Some(event) = rx.recv().await {
       count += 1;
-      if raw_json {
+      let is_agent_settled = matches!(&event, RpcEvent::Agent(AgentEvent::AgentSettled));
+      if jsonl {
+        println!(
+          "{}",
+          serde_json::json!({
+            "record": "event",
+            "sequence": count,
+            "classification": rpc_event_kind(&event),
+            "value": &event,
+          })
+        );
+      } else if raw_json {
         match serde_json::to_string(&event) {
-          Ok(json) => println!("[event #{count}] {json}"),
+          Ok(json) => println!("[event #{count} {}] {json}", rpc_event_kind(&event)),
           Err(e) => eprintln!("[event #{count}] <serialize error: {e}>"),
         }
       } else {
@@ -77,6 +108,9 @@ async fn main() {
           }
         }
       }
+      if is_agent_settled && let Some(agent_settled_tx) = agent_settled_tx.take() {
+        let _ = agent_settled_tx.send(());
+      }
     }
     eprintln!("--- Event stream closed ({count} events total) ---");
   });
@@ -84,7 +118,12 @@ async fn main() {
   eprintln!("\n--- Calling get_state() ---");
   match timeout(Duration::from_secs(1), session.get_state()).await {
     Ok(Ok(state)) => {
-      if raw_json {
+      if jsonl {
+        println!(
+          "{}",
+          serde_json::json!({"record": "get_state", "value": state})
+        );
+      } else if raw_json {
         println!("[get_state] {}", serde_json::to_string(&state).unwrap());
       } else {
         eprintln!("  session_id: {}", state.session_id);
@@ -104,7 +143,12 @@ async fn main() {
   eprintln!("\n--- Calling get_commands() ---");
   match timeout(Duration::from_secs(1), session.get_commands()).await {
     Ok(Ok(GetCommandsData { commands })) => {
-      if raw_json {
+      if jsonl {
+        println!(
+          "{}",
+          serde_json::json!({"record": "get_commands", "value": commands})
+        );
+      } else if raw_json {
         println!(
           "[get_commands] {}",
           serde_json::to_string(&commands).unwrap()
@@ -126,10 +170,12 @@ async fn main() {
       Err(e) => eprintln!("  prompt ERROR: {e}"),
     }
 
-    // Wait for agent_end
-    eprintln!("--- Waiting for agent_end ---");
-    // The event_task is printing events; we just wait here
-    tokio::time::sleep(Duration::from_secs(args.wait)).await;
+    eprintln!("--- Waiting for agent_settled ---");
+    match timeout(Duration::from_secs(args.wait), agent_settled_rx).await {
+      Ok(Ok(())) => {}
+      Ok(Err(_)) => eprintln!("  event stream closed before agent_settled"),
+      Err(_) => eprintln!("  TIMEOUT waiting for agent_settled"),
+    }
   } else {
     eprintln!("\n--- No --prompt given, observing for {}s ---", args.wait);
     tokio::time::sleep(Duration::from_secs(args.wait)).await;
@@ -138,6 +184,15 @@ async fn main() {
   eprintln!("\n--- Done, dropping session ---");
   drop(session);
   let _ = timeout(Duration::from_secs(2), event_task).await;
+}
+
+fn rpc_event_kind(event: &RpcEvent) -> &'static str {
+  match event {
+    RpcEvent::Agent(_) => "agent",
+    RpcEvent::ExtensionUI(_) => "extension_ui",
+    RpcEvent::Session(_) => "session",
+    RpcEvent::Unknown(_) => "unknown",
+  }
 }
 
 fn format_agent_event(event: &AgentEvent) -> String {
@@ -344,7 +399,7 @@ fn format_message_preview(msg: &AgentMessage) -> String {
 
 fn format_assistant_event(event: &AssistantMessageEvent) -> String {
   match event {
-    AssistantMessageEvent::Start { .. } => "start".into(),
+    AssistantMessageEvent::Start => "start".into(),
     AssistantMessageEvent::TextStart { content_index, .. } => {
       format!("text_start[{content_index}]")
     }

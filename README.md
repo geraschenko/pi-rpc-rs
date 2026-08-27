@@ -9,8 +9,8 @@ Typed Rust bindings for [pi](https://github.com/earendil-works/pi)'s RPC mode.
 `PiSession` runs `pi --mode rpc` as a subprocess, rebroadcasts pi's event stream
 to subscribers, and correlates RPC responses to commands. Every pi RPC command
 is faithfully exposed as a session method. For example, `PiSession::fork` wraps
-pi's [`fork` command](https://github.com/earendil-works/pi/blob/v0.83.0/packages/coding-agent/src/modes/rpc/rpc-types.ts#L61)
-and its return type mirrors pi's [`fork` response type](https://github.com/earendil-works/pi/blob/v0.83.0/packages/coding-agent/src/modes/rpc/rpc-types.ts#L186).
+pi's [`fork` command](https://github.com/earendil-works/pi/blob/v0.84.3/packages/coding-agent/src/modes/rpc/rpc-types.ts#L61)
+and its return type mirrors pi's [`fork` response type](https://github.com/earendil-works/pi/blob/v0.84.3/packages/coding-agent/src/modes/rpc/rpc-types.ts#L186).
 
 ## Quick start
 
@@ -60,11 +60,12 @@ requires.
 
 ## Compatibility
 
-**Compatible with pi 0.83.0.** This version is tracked in
+**Compatible with pi 0.84.3.** This version is tracked in
 `src/types/upstream.toml`.
 
 | `pi-rpc-rs` version | Compatible pi version |
 | ------------------- | --------------------- |
+| `0.1.6`             | `0.84.3`              |
 | `0.1.5`             | `0.83.0`              |
 | `0.1.4`             | `0.80.6`              |
 | `0.1.3`             | `0.80.2`              |

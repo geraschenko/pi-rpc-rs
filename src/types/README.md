@@ -1,7 +1,7 @@
 # pi RPC Type Definitions
 
 Hand-written Rust types mirroring the TypeScript definitions from
-[pi](https://github.com/earendil-works/pi) **0.83.0**.
+[pi](https://github.com/earendil-works/pi) **0.84.3**.
 
 These files are **not auto-generated** — they were written by hand to closely
 match the TypeScript sources. Each file has a doc comment at the top naming the
@@ -23,6 +23,7 @@ The human-readable mapping is below. The same mapping is also captured in
 | `agent.rs`           | `packages/agent/src/types.ts` — `AgentMessage`, `AgentEvent`, `ThinkingLevel`                                           |
 | `agent.rs`           | `packages/coding-agent/src/core/messages.ts` — declaration-merged custom message variants                               |
 | `agent.rs`           | `packages/coding-agent/src/core/agent-session.ts` — `AgentSessionEvent` variants merged into `AgentEvent`               |
+| `agent.rs`, `ai.rs`  | `packages/coding-agent/src/modes/json-event.ts` — compact `message_update` wire shape                                   |
 | `agent_session.rs`   | `packages/coding-agent/src/core/agent-session.ts` — `SessionStats`                                                      |
 | `bash_executor.rs`   | `packages/coding-agent/src/core/bash-executor.ts` — `BashResult`                                                        |
 | `compaction.rs`      | `packages/coding-agent/src/core/compaction/compaction.ts` — `CompactionResult`                                          |
@@ -44,9 +45,11 @@ exclusive list of all future files.
 
 - **`AgentSessionEvent`**: TypeScript defines this as
   `AgentEvent | { type: "queue_update"; ... } | { type: "compaction_start"; ... } | ...`.
-  In Rust, the additional variants are included directly in `AgentEvent` in
-  `agent.rs`, with comments marking their origin. This matches the actual event
-  stream, where subscribers receive one untagged-by-source JSON union.
+  RPC serializes it as `JsonAgentSessionEvent`, which replaces `message_update`
+  with a compact shape that omits cumulative assistant snapshots. In Rust, the
+  resulting wire variants are included directly in `AgentEvent` in `agent.rs`,
+  and the compact nested streaming variants remain `AssistantMessageEvent` in
+  `ai.rs`.
 
 ## Intentional deviations and rationale
 
@@ -72,11 +75,11 @@ reasons stale.
   `serde_json::Value` preserves the wire data for callers that care while
   avoiding a large provider-compatibility enum that would need frequent updates.
 
-- **Some streaming partials are `serde_json::Value`**: `AssistantMessageEvent`
-  carries partial/final assistant messages. Some fields are represented as
-  `serde_json::Value` where strict recursive Rust typing would add complexity
-  without much benefit to RPC command handling. Prefer tightening these only
-  when tests or real client needs show value.
+- **Final streaming messages are `serde_json::Value`**: The `done` and `error`
+  `AssistantMessageEvent` variants carry final assistant messages. They are
+  represented as `serde_json::Value` where strict recursive Rust typing would
+  add complexity without much benefit to RPC command handling. Prefer
+  tightening these only when tests or real client needs show value.
 
 - **Manual updates, not Rust codegen**: The wire surface is small and several
   mappings require judgment (declaration merging, event unions, ergonomic Rust

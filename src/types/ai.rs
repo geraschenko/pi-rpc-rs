@@ -65,6 +65,8 @@ pub enum ContentBlock {
     arguments: HashMap<String, serde_json::Value>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     thought_signature: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    namespace: Option<String>,
   },
 }
 
@@ -111,6 +113,22 @@ pub enum StopReason {
   ToolUse,
   Error,
   Aborted,
+  Deferred,
+}
+
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct DeferredHandle {
+  pub provider: String,
+  pub model_id: String,
+  pub api: String,
+  pub id: String,
+  #[serde(default, skip_serializing_if = "Option::is_none")]
+  pub expires_at: Option<f64>,
+  #[serde(default, skip_serializing_if = "Option::is_none")]
+  pub poll_after_ms: Option<f64>,
+  #[serde(default, skip_serializing_if = "Option::is_none")]
+  pub data: Option<serde_json::Value>,
 }
 
 // ============================================================================
@@ -149,6 +167,8 @@ pub struct Model {
   pub cost: ModelCost,
   pub context_window: f64,
   pub max_tokens: f64,
+  #[serde(default, skip_serializing_if = "Option::is_none")]
+  pub sampling_params: Option<HashMap<String, serde_json::Value>>,
   #[serde(default, skip_serializing_if = "Option::is_none")]
   pub headers: Option<HashMap<String, String>>,
   #[serde(default, skip_serializing_if = "Option::is_none")]
@@ -221,50 +241,41 @@ pub struct AssistantMessageDiagnostic {
 )]
 #[strum(serialize_all = "snake_case")]
 pub enum AssistantMessageEvent {
-  Start {
-    partial: Box<serde_json::Value>,
-  },
+  Start,
   TextStart {
     content_index: f64,
-    partial: Box<serde_json::Value>,
   },
   TextDelta {
     content_index: f64,
     delta: String,
-    partial: Box<serde_json::Value>,
   },
   TextEnd {
     content_index: f64,
     content: String,
-    partial: Box<serde_json::Value>,
   },
   ThinkingStart {
     content_index: f64,
-    partial: Box<serde_json::Value>,
   },
   ThinkingDelta {
     content_index: f64,
     delta: String,
-    partial: Box<serde_json::Value>,
   },
   ThinkingEnd {
     content_index: f64,
     content: String,
-    partial: Box<serde_json::Value>,
   },
   ToolcallStart {
     content_index: f64,
-    partial: Box<serde_json::Value>,
+    id: String,
+    tool_name: String,
   },
   ToolcallDelta {
     content_index: f64,
     delta: String,
-    partial: Box<serde_json::Value>,
   },
   ToolcallEnd {
     content_index: f64,
     tool_call: ContentBlock, // always the ToolCall variant
-    partial: Box<serde_json::Value>,
   },
   Done {
     reason: StopReason,

@@ -62,7 +62,7 @@ Defined across `AgentEvent` (agent-core) and `AgentSessionEvent` (agent-session)
 | `turn_start`                        | —                                                            | New turn (1 assistant response + tool calls).                    |
 | `turn_end`                          | `message`, `toolResults`                                     | Turn complete.                                                   |
 | `message_start`                     | `message: AgentMessage`                                      | Message begins. Emitted for user, assistant, toolResult, custom. |
-| `message_update`                    | `message`, `assistantMessageEvent`                           | Streaming delta. Only for assistant messages.                    |
+| `message_update`                    | `usage`, `assistantMessageEvent`                             | Compact streaming delta. Only for assistant messages.            |
 | `message_end`                       | `message: AgentMessage`                                      | Message complete.                                                |
 | `tool_execution_start`              | `toolCallId`, `toolName`, `args`                             | Tool begins.                                                     |
 | `tool_execution_update`             | `toolCallId`, `toolName`, `args`, `partialResult`            | Tool progress.                                                   |
@@ -107,18 +107,20 @@ Methods: `select`, `confirm`, `input`, `editor` (dialog, need response), `notify
 | `compactionSummary` | `CompactionSummaryMessage` | pi-coding-agent |
 
 Assistant messages may include `rawStopReason`, preserving the provider's stop
-reason alongside pi's normalized `stopReason`. Tool-result messages may include
-execution `usage` and `addedToolNames` for tools made available at that point in
-the transcript.
+reason alongside pi's normalized `stopReason`, and `endTurn`, preserving whether
+the provider explicitly ended its turn. A deferred response includes a
+`deferred` handle identifying the provider request to poll. Tool-result messages
+may include execution `usage` and `addedToolNames` for tools made available at
+that point in the transcript.
 
 ### Content blocks (nested in messages)
 
-| Type              | Fields                                               |
-| ----------------- | ---------------------------------------------------- |
-| `TextContent`     | `type: "text"`, `text`                               |
-| `ImageContent`    | `type: "image"`, `data` (base64), `mimeType`         |
-| `ThinkingContent` | `type: "thinking"`, `thinking`, `thinkingSignature?` |
-| `ToolCall`        | `type: "toolCall"`, `id`, `name`, `arguments`        |
+| Type              | Fields                                                      |
+| ----------------- | ----------------------------------------------------------- |
+| `TextContent`     | `type: "text"`, `text`                                      |
+| `ImageContent`    | `type: "image"`, `data` (base64), `mimeType`                |
+| `ThinkingContent` | `type: "thinking"`, `thinking`, `thinkingSignature?`        |
+| `ToolCall`        | `type: "toolCall"`, `id`, `name`, `arguments`, `namespace?` |
 
 ### AssistantMessageEvent (nested in `message_update`)
 
@@ -131,7 +133,11 @@ Discriminated on `type`:
 - `done` — complete (has `reason`)
 - `error` — failed (has `reason`)
 
-All carry `partial: AssistantMessage` (the in-progress message) and `contentIndex: usize`.
+RPC serializes these through `json-event.ts`, which removes cumulative `partial`
+assistant snapshots. Content events carry `contentIndex`; `toolcall_start` also
+carries `id` and `toolName`. The enclosing `message_update` carries cumulative
+`usage`. `message_start` and `message_end` provide the initial and final
+assistant messages.
 
 ### Model
 
@@ -146,6 +152,7 @@ All carry `partial: AssistantMessage` (the in-progress message) and `contentInde
   input: string[],        // ["text", "image"]
   contextWindow: number,
   maxTokens: number,
+  samplingParams?: Record<string, unknown>,
   cost: { input, output, cacheRead, cacheWrite, tiers? }  // per million tokens
 }
 ```
@@ -190,9 +197,15 @@ Compaction and branch-summary entries may also include the summarization call's
 `usage`. `SessionTreeNode` has `entry`, `children`, and optional `label` /
 `labelTimestamp`.
 
+### DeferredHandle
+
+Deferred assistant messages may include `{ provider, modelId, api, id,
+expiresAt?, pollAfterMs?, data? }`. `data` contains provider-specific JSON needed
+to retrieve the final response.
+
 ### StopReason
 
-`"pending"` | `"stop"` | `"length"` | `"toolUse"` | `"error"` | `"aborted"`
+`"pending"` | `"stop"` | `"length"` | `"toolUse"` | `"error"` | `"aborted"` | `"deferred"`
 
 ### ThinkingLevel
 
