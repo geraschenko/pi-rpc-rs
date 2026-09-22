@@ -1,7 +1,7 @@
 # pi RPC Type Definitions
 
 Hand-written Rust types mirroring the TypeScript definitions from
-[pi](https://github.com/earendil-works/pi) **0.84.3**.
+[pi](https://github.com/earendil-works/pi) **0.87.1**.
 
 These files are **not auto-generated** — they were written by hand to closely
 match the TypeScript sources. Each file has a doc comment at the top naming the
@@ -19,7 +19,7 @@ The human-readable mapping is below. The same mapping is also captured in
 
 | Rust file            | TypeScript source                                                                                                       |
 | -------------------- | ----------------------------------------------------------------------------------------------------------------------- |
-| `ai.rs`              | `packages/ai/src/types.ts` — content blocks, messages, usage, models, streaming events                                  |
+| `ai.rs`              | `packages/ai/src/types.ts` — content blocks, messages, tool declarations, usage, models, streaming events               |
 | `agent.rs`           | `packages/agent/src/types.ts` — `AgentMessage`, `AgentEvent`, `ThinkingLevel`                                           |
 | `agent.rs`           | `packages/coding-agent/src/core/messages.ts` — declaration-merged custom message variants                               |
 | `agent.rs`           | `packages/coding-agent/src/core/agent-session.ts` — `AgentSessionEvent` variants merged into `AgentEvent`               |
@@ -74,6 +74,12 @@ reasons stale.
   `Model<any>`, so Rust cannot know a single static shape. Keeping it as
   `serde_json::Value` preserves the wire data for callers that care while
   avoiding a large provider-compatibility enum that would need frequent updates.
+
+- **System messages**: `AgentMessage::System` includes prompt sections and tool
+  declarations. Section insertion order is preserved through JSON decoding and
+  serialization because it determines prompt order. `CompactionEntry.system_message`
+  uses `AgentMessage` (always its `System` variant on the wire), like other
+  message-bearing fields that narrow the union in TypeScript.
 
 - **Final streaming messages are `serde_json::Value`**: The `done` and `error`
   `AssistantMessageEvent` variants carry final assistant messages. They are

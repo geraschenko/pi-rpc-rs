@@ -341,6 +341,7 @@ fn format_agent_event(event: &AgentEvent) -> String {
 
 fn format_message_role(msg: &AgentMessage) -> &'static str {
   match msg {
+    AgentMessage::System { .. } => "system",
     AgentMessage::User { .. } => "user",
     AgentMessage::Assistant { .. } => "assistant",
     AgentMessage::ToolResult { .. } => "toolResult",
@@ -353,6 +354,17 @@ fn format_message_role(msg: &AgentMessage) -> &'static str {
 
 fn format_message_preview(msg: &AgentMessage) -> String {
   let text = match msg {
+    AgentMessage::System { content, .. } => match content {
+      SystemContent::Text(text) => text.clone(),
+      SystemContent::Blocks(blocks) => blocks
+        .iter()
+        .filter_map(|block| match block {
+          ContentBlock::Text { text, .. } => Some(text.as_str()),
+          _ => None,
+        })
+        .collect::<Vec<_>>()
+        .join(""),
+    },
     AgentMessage::User { content, .. } => match content {
       UserContent::Text(t) => t.clone(),
       UserContent::Blocks(blocks) => blocks

@@ -1,7 +1,7 @@
 #![allow(clippy::module_inception)]
 
 /// Upstream pi version whose RPC protocol this crate targets.
-pub const COMPATIBLE_PI_VERSION: &str = "0.84.3";
+pub const COMPATIBLE_PI_VERSION: &str = "0.87.1";
 
 pub mod session;
 pub mod types;

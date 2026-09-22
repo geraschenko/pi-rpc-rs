@@ -92,7 +92,13 @@ session.prompt("msg", None, Some(StreamingBehavior::Steer)).await?;
 session.steer("interrupt message", None).await?;            // -> ()
 session.follow_up("after you're done", None).await?;        // -> ()
 session.abort().await?;                                     // -> ()
+session.clear_queue().await?;                               // -> ClearQueueData
 ```
+
+`clear_queue()` returns the removed `steering` and `follow_up` text queues.
+It does not abort the current operation. Steering and follow-up input pass through
+upstream input hooks with source `rpc`. `abort()` also cancels compaction and
+branch summarization and waits for idle.
 
 ### Session management
 

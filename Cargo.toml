@@ -1,6 +1,6 @@
 [package]
 name = "pi-rpc-rs"
-version = "0.1.6"
+version = "0.1.7"
 authors = ["Anton Geraschenko <gerascheko@gmail.com>"]
 edition = "2024"
 exclude = ["docs/", "scripts/", ".pi/"]
@@ -11,12 +11,14 @@ description = "A typed interface to pi's RPC mode (pi --mode rpc)"
 
 [dependencies]
 clap = { version = ">=4", features = ["derive"] }
+indexmap = { version = ">=2", features = ["serde"] }
 log = ">=0.4"
 serde = { version = ">=1", features = ["derive"] }
-serde_json = ">=1"
+serde_json = { version = ">=1", features = ["preserve_order"] }
 strum = { version = ">=0.28", features = ["derive"] }
 tokio = { version = ">=1", features = ["full"] }
 tokio-util = ">=0.7"
 
 [dev-dependencies]
+tempfile = ">=3"
 toml = ">=1.1.2"

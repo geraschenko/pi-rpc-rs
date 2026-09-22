@@ -3,12 +3,17 @@
 //! These tests require `pi` to be installed and configured with API credentials.
 //! Run with: `cargo nextest run --run-ignored all`
 //!
-//! All tests use `--no-session` to avoid polluting the user's session directory.
+//! Each test uses private directories and a copy of the Codex OAuth credential.
+//! Requires Unix, `pi` on PATH, and at least 30 minutes of token validity.
+
+#![cfg(unix)]
+
+mod support;
 
 use std::time::Duration;
 
-use pi_rpc_rs::session::{PiSession, PiSessionConfig, SessionPersistence};
 use pi_rpc_rs::types::*;
+use support::TestSession;
 use tokio::time::timeout;
 
 /// Timeout for operations that don't involve LLM calls (state queries, settings, bash).
@@ -17,17 +22,8 @@ const FAST_TIMEOUT: Duration = Duration::from_secs(5);
 /// Timeout for operations that involve a single LLM call.
 const LLM_TIMEOUT: Duration = Duration::from_secs(15);
 
-/// Helper to spawn a test session with --no-session.
-async fn spawn_test_session() -> PiSession {
-  let config = PiSessionConfig {
-    session_persistence: SessionPersistence::Disabled,
-    provider: Some("openai-codex".to_string()),
-    model: Some("gpt-5.4-mini".to_string()),
-    ..Default::default()
-  };
-  PiSession::spawn(config)
-    .await
-    .expect("Failed to spawn pi session")
+async fn spawn_test_session() -> TestSession {
+  TestSession::spawn().await
 }
 
 /// Collect events until agent_end or timeout. Panics on timeout.
@@ -95,6 +91,29 @@ fn assert_no_error<T: std::fmt::Debug + ?Sized>(msg: &AgentMessage, diagnostic: 
 
 #[tokio::test]
 #[ignore]
+async fn test_clear_queue() {
+  let session = spawn_test_session().await;
+  timeout(FAST_TIMEOUT, async {
+    session.steer("queued steering", None).await.unwrap();
+    session.follow_up("queued follow-up", None).await.unwrap();
+    let cleared = session.clear_queue().await.unwrap();
+    assert_eq!(cleared.steering, ["queued steering"]);
+    assert_eq!(cleared.follow_up, ["queued follow-up"]);
+    let empty = session.clear_queue().await.unwrap();
+    assert!(empty.steering.is_empty());
+    assert!(empty.follow_up.is_empty());
+    assert_eq!(
+      session.get_state().await.unwrap().pending_message_count,
+      0.0
+    );
+  })
+  .await
+  .expect("clear_queue timed out");
+  session.finish().await;
+}
+
+#[tokio::test]
+#[ignore]
 async fn test_spawn_and_get_state() {
   let session = spawn_test_session().await;
 
@@ -114,12 +133,13 @@ async fn test_spawn_and_get_state() {
   let model = state.model.expect("model should be set");
   assert!(!model.id.is_empty());
   assert!(!model.name.is_empty());
-  assert!(model.reasoning, "gpt-5.4-mini should support reasoning");
+  assert!(model.reasoning, "gpt-5.5 should support reasoning");
 
   eprintln!(
     "State: session_id={}, model={}, thinking_level={:?}",
     state.session_id, model.name, state.thinking_level
   );
+  session.finish().await;
 }
 
 // ============================================================================
@@ -138,6 +158,12 @@ async fn test_prompt_and_events() {
     .expect("prompt failed");
 
   let events = collect_events_until_agent_end(&mut rx, LLM_TIMEOUT).await;
+
+  for event in &events {
+    if let RpcEvent::Agent(AgentEvent::MessageEnd { message }) = event {
+      assert_no_error(message, &events);
+    }
+  }
 
   type EventPredicate = fn(&RpcEvent) -> bool;
   let expected_events: &[(&str, EventPredicate)] = &[
@@ -209,13 +235,6 @@ async fn test_prompt_and_events() {
     next_event_index += relative_index + 1;
   }
 
-  // Verify assistant actually produced content without errors
-  for event in &events {
-    if let RpcEvent::Agent(AgentEvent::MessageEnd { message }) = event {
-      assert_no_error(message, &events);
-    }
-  }
-
   // Verify the final assistant message contains PONG
   let agent_end_messages = events
     .iter()
@@ -241,6 +260,7 @@ async fn test_prompt_and_events() {
     text.contains("PONG"),
     "expected PONG in response, got: {text:?}\nfull event stream:\n{events:#?}"
   );
+  session.finish().await;
 }
 
 // ============================================================================
@@ -262,6 +282,7 @@ async fn test_get_available_models() {
   for m in &models.models {
     eprintln!("  {} (provider: {}, api: {})", m.name, m.provider, m.api);
   }
+  session.finish().await;
 }
 
 #[tokio::test]
@@ -284,6 +305,7 @@ async fn test_set_model() {
   assert_eq!(result.id, target.id);
   assert_eq!(result.provider, target.provider);
   eprintln!("Set model to: {} ({})", result.name, result.id);
+  session.finish().await;
 }
 
 #[tokio::test]
@@ -301,6 +323,7 @@ async fn test_cycle_model() {
   } else {
     eprintln!("cycle_model returned None (possibly only one model available)");
   }
+  session.finish().await;
 }
 
 // ============================================================================
@@ -312,7 +335,7 @@ async fn test_cycle_model() {
 async fn test_set_thinking_level() {
   let session = spawn_test_session().await;
 
-  // gpt-5.4-mini supports reasoning, so this should work
+  // gpt-5.5 supports reasoning, so this should work
   session
     .set_thinking_level(ThinkingLevel::Medium)
     .await
@@ -328,6 +351,7 @@ async fn test_set_thinking_level() {
 
   let state = session.get_state().await.expect("get_state failed");
   assert_eq!(state.thinking_level, ThinkingLevel::Off);
+  session.finish().await;
 }
 
 #[tokio::test]
@@ -345,6 +369,7 @@ async fn test_cycle_thinking_level() {
   } else {
     eprintln!("cycle_thinking_level returned None");
   }
+  session.finish().await;
 }
 
 #[tokio::test]
@@ -359,6 +384,7 @@ async fn test_get_available_thinking_levels() {
 
   assert!(!data.levels.is_empty());
   eprintln!("Available thinking levels: {:?}", data.levels);
+  session.finish().await;
 }
 
 // ============================================================================
@@ -372,6 +398,7 @@ async fn test_new_session() {
 
   let result = session.new_session(None).await.expect("new_session failed");
   eprintln!("New session cancelled={}", result.cancelled);
+  session.finish().await;
 }
 
 #[tokio::test]
@@ -386,6 +413,7 @@ async fn test_set_session_name() {
 
   let state = session.get_state().await.expect("get_state failed");
   assert_eq!(state.session_name.as_deref(), Some("test-session-name"));
+  session.finish().await;
 }
 
 #[tokio::test]
@@ -405,6 +433,7 @@ async fn test_get_session_stats() {
   );
   assert_eq!(stats.cost, 0.0, "fresh session should have 0 cost");
   eprintln!("Session stats: {:?}", stats);
+  session.finish().await;
 }
 
 // ============================================================================
@@ -429,6 +458,7 @@ async fn test_bash_echo() {
   assert_eq!(result.exit_code, Some(0.0));
   assert!(!result.cancelled);
   assert!(!result.truncated);
+  session.finish().await;
 }
 
 #[tokio::test]
@@ -439,6 +469,7 @@ async fn test_bash_exit_code() {
   let result = session.bash("exit 42", false).await.expect("bash failed");
 
   assert_eq!(result.exit_code, Some(42.0));
+  session.finish().await;
 }
 
 // ============================================================================
@@ -470,6 +501,7 @@ async fn test_abort() {
     .iter()
     .any(|e| matches!(e, RpcEvent::Agent(AgentEvent::AgentEnd { .. })));
   assert!(has_agent_end, "should receive agent_end after abort");
+  session.finish().await;
 }
 
 // ============================================================================
@@ -529,6 +561,7 @@ async fn test_steer() {
     has_steer_message,
     "steer message should appear as a user message_start event"
   );
+  session.finish().await;
 }
 
 // ============================================================================
@@ -556,6 +589,7 @@ async fn test_set_model_invalid() {
       e
     );
   }
+  session.finish().await;
 }
 
 // ============================================================================
@@ -592,6 +626,7 @@ async fn test_set_queue_modes() {
   let state = session.get_state().await.expect("get_state failed");
   assert_eq!(state.steering_mode, QueueMode::All);
   assert_eq!(state.follow_up_mode, QueueMode::All);
+  session.finish().await;
 }
 
 // ============================================================================
@@ -616,6 +651,7 @@ async fn test_auto_compaction_setting() {
     .expect("set_auto_compaction(true) failed");
   let state = session.get_state().await.expect("get_state failed");
   assert!(state.auto_compaction_enabled);
+  session.finish().await;
 }
 
 #[tokio::test]
@@ -631,6 +667,7 @@ async fn test_auto_retry_setting() {
     .set_auto_retry(true)
     .await
     .expect("set_auto_retry(true) failed");
+  session.finish().await;
 }
 
 // ============================================================================
@@ -648,6 +685,7 @@ async fn test_get_commands() {
   for cmd in &result.commands {
     eprintln!("  /{} ({:?})", cmd.name, cmd.source);
   }
+  session.finish().await;
 }
 
 // ============================================================================
@@ -664,6 +702,7 @@ async fn test_kill() {
 
   let result = session.get_state().await;
   assert!(result.is_err(), "get_state should fail after kill");
+  session.finish().await;
 }
 
 // ============================================================================
@@ -680,6 +719,7 @@ async fn test_get_messages_empty() {
     result.messages.is_empty(),
     "fresh session should have no messages"
   );
+  session.finish().await;
 }
 
 #[tokio::test]
@@ -695,6 +735,7 @@ async fn test_get_last_assistant_text_empty() {
     result.text.is_none(),
     "fresh session should have no last assistant text"
   );
+  session.finish().await;
 }
 
 #[tokio::test]
@@ -712,14 +753,26 @@ async fn test_get_messages_after_prompt() {
 
   let messages = session.get_messages().await.expect("get_messages failed");
   assert!(
-    messages.messages.len() >= 2,
-    "should have at least user + assistant messages, got {}",
+    messages.messages.len() >= 3,
+    "should have system + user + assistant messages, got {}",
     messages.messages.len()
   );
 
   assert!(
-    matches!(&messages.messages[0], AgentMessage::User { .. }),
-    "first message should be user"
+    matches!(&messages.messages[0], AgentMessage::System { .. }),
+    "first message should be system: {:#?}",
+    messages.messages
+  );
+  assert!(
+    matches!(
+      messages
+        .messages
+        .iter()
+        .find(|message| !matches!(message, AgentMessage::System { .. })),
+      Some(AgentMessage::User { .. })
+    ),
+    "first non-system message should be user: {:#?}",
+    messages.messages
   );
 
   // Verify assistant responded without error
@@ -745,4 +798,5 @@ async fn test_get_messages_after_prompt() {
     "should have last assistant text after prompt"
   );
   eprintln!("Last assistant text: {:?}", last_text.text);
+  session.finish().await;
 }

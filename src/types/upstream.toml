@@ -4,7 +4,7 @@
 # crate at build time. Keep it in sync with src/types/README.md when bumping
 # the upstream pi version.
 
-version = "0.84.3"
+version = "0.87.1"
 repository = "https://github.com/earendil-works/pi"
 
 [[files]]
@@ -19,11 +19,19 @@ exports = [
   "Usage",
   "StopReason",
   "DeferredHandle",
+  "SystemMessage",
+  "Tool",
+  "ToolReference",
+  "ConstrainedSamplingConfig",
   "UserMessage",
   "AssistantMessage",
   "ToolResultMessage",
   "Message",
   "Model",
+  "ModelInputLimits",
+  "ModelImageInputLimits",
+  "ModelImageResizeOptions",
+  "ModelPromptCache",
   "AssistantMessageEvent",
 ]
 notes = "Only RPC-reachable ai.ts types are mirrored. Image generation types are intentionally skipped unless they appear in RPC wire types. AssistantMessageEvent is further transformed by json-event.ts for RPC output."
@@ -106,6 +114,8 @@ typescript = "packages/coding-agent/src/core/session-manager.ts"
 exports = [
   "SessionEntry",
   "SessionTreeNode",
+  "UsageEntry",
+  "ContextEditEntry",
 ]
 notes = "Only RPC-returned session entries and tree nodes are mirrored."
 

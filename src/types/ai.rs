@@ -143,6 +143,83 @@ pub enum UserContent {
   Blocks(Vec<ContentBlock>),
 }
 
+/// Instruction text carried by a system message.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[serde(untagged)]
+pub enum SystemContent {
+  Text(String),
+  Blocks(Vec<ContentBlock>),
+}
+
+/// Provider-visible tool declaration, without an executable implementation.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct Tool {
+  pub name: String,
+  pub description: String,
+  pub parameters: serde_json::Value,
+  #[serde(default, skip_serializing_if = "Option::is_none")]
+  pub constrained_sampling: Option<ConstrainedSampling>,
+}
+
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[serde(untagged)]
+pub enum ConstrainedSampling {
+  Disabled(False),
+  Config(ConstrainedSamplingConfig),
+}
+
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[serde(try_from = "bool", into = "bool")]
+pub struct False;
+
+impl TryFrom<bool> for False {
+  type Error = &'static str;
+  fn try_from(value: bool) -> Result<Self, Self::Error> {
+    if value {
+      Err("expected false")
+    } else {
+      Ok(Self)
+    }
+  }
+}
+
+impl From<False> for bool {
+  fn from(_: False) -> Self {
+    false
+  }
+}
+
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[serde(tag = "type", rename_all = "snake_case")]
+pub enum ConstrainedSamplingConfig {
+  JsonSchema {
+    strict: StrictMode,
+  },
+  Grammar {
+    variants: HashMap<GrammarFormat, String>,
+  },
+}
+
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[serde(rename_all = "lowercase")]
+pub enum StrictMode {
+  Prefer,
+  Require,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum GrammarFormat {
+  OpenaiLark,
+  OpenaiRegex,
+}
+
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct ToolReference {
+  pub name: String,
+}
+
 // ============================================================================
 // Model
 // ============================================================================
@@ -164,6 +241,10 @@ pub struct Model {
   #[serde(default, skip_serializing_if = "Option::is_none")]
   pub thinking_level_map: Option<HashMap<crate::types::ThinkingLevel, Option<String>>>,
   pub input: Vec<String>,
+  #[serde(default, skip_serializing_if = "Option::is_none")]
+  pub input_limits: Option<ModelInputLimits>,
+  #[serde(default, skip_serializing_if = "Option::is_none")]
+  pub prompt_cache: Option<ModelPromptCache>,
   pub cost: ModelCost,
   pub context_window: f64,
   pub max_tokens: f64,
@@ -194,6 +275,47 @@ pub struct ModelCostTier {
   pub cache_read: f64,
   pub cache_write: f64,
   pub input_tokens_above: f64,
+}
+
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct ModelPromptCache {
+  #[serde(default, skip_serializing_if = "Option::is_none")]
+  pub short: Option<f64>,
+  #[serde(default, skip_serializing_if = "Option::is_none")]
+  pub long: Option<f64>,
+}
+
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ModelInputLimits {
+  #[serde(default, skip_serializing_if = "Option::is_none")]
+  pub max_request_bytes: Option<f64>,
+  #[serde(default, skip_serializing_if = "Option::is_none")]
+  pub images: Option<ModelImageInputLimits>,
+}
+
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ModelImageInputLimits {
+  #[serde(default, skip_serializing_if = "Option::is_none")]
+  pub resize: Option<ModelImageResizeOptions>,
+  #[serde(default, skip_serializing_if = "Option::is_none")]
+  pub max_per_message: Option<f64>,
+  #[serde(default, skip_serializing_if = "Option::is_none")]
+  pub max_per_request: Option<f64>,
+}
+
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ModelImageResizeOptions {
+  #[serde(default, skip_serializing_if = "Option::is_none")]
+  pub max_width: Option<f64>,
+  #[serde(default, skip_serializing_if = "Option::is_none")]
+  pub max_height: Option<f64>,
+  #[serde(default, skip_serializing_if = "Option::is_none")]
+  pub max_bytes: Option<f64>,
+  #[serde(default, skip_serializing_if = "Option::is_none")]
+  pub jpeg_quality: Option<f64>,
 }
 
 // ============================================================================

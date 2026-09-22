@@ -114,6 +114,7 @@ pub enum RpcCommandKind {
     images: Option<Vec<ContentBlock>>,
   },
   Abort,
+  ClearQueue,
   NewSession {
     #[serde(default, skip_serializing_if = "Option::is_none")]
     parent_session: Option<String>,
@@ -277,6 +278,7 @@ pub enum RpcResponseKind {
   SetSessionName,
 
   // -- Success responses with data --
+  ClearQueue(ClearQueueData),
   NewSession(NewSessionData),
   GetState(RpcSessionState),
   SetModel(Model),
@@ -310,6 +312,7 @@ impl RpcResponseKind {
       RpcResponseKind::Steer => "steer",
       RpcResponseKind::FollowUp => "follow_up",
       RpcResponseKind::Abort => "abort",
+      RpcResponseKind::ClearQueue(_) => "clear_queue",
       RpcResponseKind::SetThinkingLevel => "set_thinking_level",
       RpcResponseKind::SetSteeringMode => "set_steering_mode",
       RpcResponseKind::SetFollowUpMode => "set_follow_up_mode",
@@ -344,6 +347,13 @@ impl RpcResponseKind {
 }
 
 // -- Response data structs --
+
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ClearQueueData {
+  pub steering: Vec<String>,
+  pub follow_up: Vec<String>,
+}
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct NewSessionData {
@@ -483,6 +493,7 @@ impl<'de> Deserialize<'de> for RpcResponse {
         "set_session_name" => RpcResponseKind::SetSessionName,
 
         // Responses with data
+        "clear_queue" => RpcResponseKind::ClearQueue(data_field(obj)?),
         "new_session" => RpcResponseKind::NewSession(data_field(obj)?),
         "get_state" => RpcResponseKind::GetState(data_field(obj)?),
         "set_model" => RpcResponseKind::SetModel(data_field(obj)?),
@@ -548,6 +559,7 @@ const COMMAND_NAMES: &[&str] = &[
   "steer",
   "follow_up",
   "abort",
+  "clear_queue",
   "new_session",
   "get_state",
   "set_model",
@@ -610,6 +622,7 @@ impl Serialize for RpcResponse {
       RpcResponseKind::SetSessionName => serialize_success(&mut map, command, None::<&()>),
 
       // Success responses with data
+      RpcResponseKind::ClearQueue(d) => serialize_success(&mut map, command, Some(d)),
       RpcResponseKind::NewSession(d) => serialize_success(&mut map, command, Some(d)),
       RpcResponseKind::GetState(d) => serialize_success(&mut map, command, Some(d)),
       RpcResponseKind::SetModel(d) => serialize_success(&mut map, command, Some(d)),

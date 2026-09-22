@@ -7,6 +7,7 @@ Usage: scripts/presubmit.sh
 
 Runs checks expected before committing:
   - treefmt --ci
+  - cargo ratchet --fail-on-change
   - cargo clippy --all-targets --all-features -- -D warnings
   - cargo nextest run --all-targets --all-features
   - cargo doc --no-deps
@@ -35,6 +36,7 @@ run() {
 }
 
 run treefmt --ci
+run cargo ratchet --fail-on-change
 run cargo clippy --all-targets --all-features -- -D warnings
 run cargo nextest run --all-targets --all-features
 run cargo doc --no-deps

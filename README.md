@@ -58,13 +58,36 @@ Install [pi](https://github.com/earendil-works/pi) and make sure it is on
 You will also need whatever API keys or subscriptions your chosen provider/model
 requires.
 
+## Integration tests
+
+On Unix, with `pi` on `PATH` and an `openai-codex` login:
+
+```bash
+cargo nextest run --run-ignored all --no-fail-fast
+```
+
+Each integration test uses fresh working, home, agent, cache, and temporary
+directories. It copies only the Codex OAuth credential from
+`$PI_CODING_AGENT_DIR/auth.json` (default: `$HOME/.pi/agent/auth.json`), with
+private file permissions. User settings, extensions, other provider credentials,
+and ambient provider environment variables are not inherited. Tests use `gpt-5.5`
+and make real LLM calls; normal parallel execution is supported.
+
+The credential must have at least 30 minutes remaining before expiry. If the
+harness rejects it, refresh your Codex login before rerunning. This avoids tests
+refreshing independent copies of the same account's refresh token. Successful
+tests stop and await pi, verify that their auth copy is unchanged, and remove
+the temporary directories. Assertion failures also drop the session and temporary
+directory guards, using the session's normal drop cleanup.
+
 ## Compatibility
 
-**Compatible with pi 0.84.3.** This version is tracked in
+**Compatible with pi 0.87.1.** This version is tracked in
 `src/types/upstream.toml`.
 
 | `pi-rpc-rs` version | Compatible pi version |
 | ------------------- | --------------------- |
+| `0.1.7`             | `0.87.1`              |
 | `0.1.6`             | `0.84.3`              |
 | `0.1.5`             | `0.83.0`              |
 | `0.1.4`             | `0.80.6`              |

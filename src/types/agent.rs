@@ -36,7 +36,7 @@ pub enum ThinkingLevel {
 /// The resolved `AgentMessage` union.
 ///
 /// In TypeScript, `AgentMessage = Message | CustomAgentMessages[...]` where
-/// `Message = UserMessage | AssistantMessage | ToolResultMessage` is defined in
+/// `Message = SystemMessage | UserMessage | AssistantMessage | ToolResultMessage` is defined in
 /// `packages/ai/src/types.ts`, and the custom message types are added by
 /// `packages/coding-agent/src/core/messages.ts` via declaration merging.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, AsRefStr, Display)]
@@ -47,7 +47,17 @@ pub enum ThinkingLevel {
 )]
 #[strum(serialize_all = "camelCase")]
 pub enum AgentMessage {
-  // -- From packages/ai/src/types.ts (Message = UserMessage | AssistantMessage | ToolResultMessage) --
+  // -- From packages/ai/src/types.ts --
+  System {
+    content: SystemContent,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    sections: Option<indexmap::IndexMap<String, Option<String>>>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    tools_added: Option<Vec<Tool>>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    tools_removed: Option<Vec<ToolReference>>,
+    timestamp: f64,
+  },
   User {
     content: UserContent,
     timestamp: f64,
@@ -61,6 +71,8 @@ pub enum AgentMessage {
     response_model: Option<String>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     response_id: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    provider_thinking_level: Option<String>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     diagnostics: Option<Vec<AssistantMessageDiagnostic>>,
     usage: Usage,
@@ -83,8 +95,6 @@ pub enum AgentMessage {
     details: Option<serde_json::Value>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     usage: Option<Usage>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    added_tool_names: Option<Vec<String>>,
     is_error: bool,
     timestamp: f64,
   },
@@ -112,7 +122,7 @@ pub enum AgentMessage {
   },
   BranchSummary {
     summary: String,
-    from_id: String,
+    from_id: Option<String>,
     timestamp: f64,
   },
   CompactionSummary {

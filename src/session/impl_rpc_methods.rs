@@ -106,6 +106,12 @@ impl PiSession {
     match_response!(resp, RpcResponseKind::FollowUp => ())
   }
 
+  /// Clear queued steering and follow-up messages, returning their text.
+  pub async fn clear_queue(&self) -> Result<ClearQueueData, PiError> {
+    let resp = self.send_command(RpcCommandKind::ClearQueue).await?;
+    match_response!(resp, RpcResponseKind::ClearQueue(data) => data)
+  }
+
   /// Abort the current agent operation immediately.
   ///
   /// Unlike [`steer()`](Self::steer), which waits for the current tool call

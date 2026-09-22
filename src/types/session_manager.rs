@@ -50,6 +50,9 @@ pub struct CompactionEntry {
   pub usage: Option<Usage>,
   #[serde(default, skip_serializing_if = "Option::is_none")]
   pub from_hook: Option<bool>,
+  /// Always a system message on the wire.
+  #[serde(default, skip_serializing_if = "Option::is_none")]
+  pub system_message: Option<Box<AgentMessage>>,
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -121,12 +124,44 @@ pub struct SessionInfoEntry {
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct UsageEntry {
+  pub id: String,
+  pub parent_id: Option<String>,
+  pub timestamp: String,
+  pub kind: String,
+  pub provider: String,
+  pub model: String,
+  pub usage: Usage,
+  #[serde(default, skip_serializing_if = "Option::is_none")]
+  pub note: Option<String>,
+}
+
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ContextEditEntry {
+  pub id: String,
+  pub parent_id: Option<String>,
+  pub timestamp: String,
+  pub target_id: String,
+  /// Null omits the target from model context without deleting its history.
+  pub replacement: Option<ContextEditReplacement>,
+}
+
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct ContextEditReplacement {
+  pub content: CustomMessageContent,
+}
+
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[allow(clippy::large_enum_variant)]
 #[serde(tag = "type", rename_all = "snake_case")]
 pub enum SessionEntry {
   Message(SessionMessageEntry),
   ThinkingLevelChange(ThinkingLevelChangeEntry),
   ModelChange(ModelChangeEntry),
+  Usage(UsageEntry),
+  ContextEdit(ContextEditEntry),
   Compaction(CompactionEntry),
   BranchSummary(BranchSummaryEntry),
   Custom(CustomEntry),

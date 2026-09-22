@@ -1593,7 +1593,6 @@ fn agent_message_tool_result() {
         "toolName": "bash",
         "content": [{"type": "text", "text": "output"}],
         "usage": {"input": 0, "output": 5, "cacheRead": 0, "cacheWrite": 0, "totalTokens": 5, "cost": {"input": 0, "output": 0.01, "cacheRead": 0, "cacheWrite": 0, "total": 0.01}},
-        "addedToolNames": ["deferred_tool"],
         "isError": false,
         "timestamp": 3000.0
     }"#;
@@ -1602,7 +1601,6 @@ fn agent_message_tool_result() {
     tool_call_id,
     tool_name,
     usage,
-    added_tool_names,
     is_error,
     ..
   } = &msg
@@ -1610,10 +1608,6 @@ fn agent_message_tool_result() {
     assert_eq!(tool_call_id, "tc1");
     assert_eq!(tool_name, "bash");
     assert_eq!(usage.as_ref().map(|usage| usage.total_tokens), Some(5.0));
-    assert_eq!(
-      added_tool_names.as_ref().map(|names| names[0].as_str()),
-      Some("deferred_tool")
-    );
     assert!(!is_error);
   } else {
     panic!("Expected ToolResult");
